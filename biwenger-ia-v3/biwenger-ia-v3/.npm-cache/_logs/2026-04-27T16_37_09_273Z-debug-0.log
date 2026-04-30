@@ -1,0 +1,172 @@
+0 verbose cli C:\nvm4w\nodejs\node.exe C:\nvm4w\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.9.4
+2 info using node@v22.21.0
+3 silly config load:file:C:\Users\dscanales\AppData\Local\nvm\v22.21.0\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\dscanales\Documents\Codex\2026-04-27\hola\biwenger-ia-v3\biwenger-ia-v3\.npmrc
+5 silly config load:file:C:\Users\dscanales\.npmrc
+6 silly config load:file:C:\Users\dscanales\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install next@14.2.35
+8 verbose argv "install" "next@14.2.35" "--cache" ".npm-cache" "--no-audit" "--no-fund"
+9 verbose logfile logs-max:10 dir:C:\Users\dscanales\Documents\Codex\2026-04-27\hola\biwenger-ia-v3\biwenger-ia-v3\.npm-cache\_logs\2026-04-27T16_37_09_273Z-
+10 verbose logfile C:\Users\dscanales\Documents\Codex\2026-04-27\hola\biwenger-ia-v3\biwenger-ia-v3\.npm-cache\_logs\2026-04-27T16_37_09_273Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:2197815296 maxSize:549453824 maxEntrySize:274726912
+13 silly idealTree buildDeps
+14 silly fetch manifest next@14.2.35
+15 silly packumentCache full:https://registry.npmjs.org/next cache-miss
+16 http fetch GET 200 https://registry.npmjs.org/next 1008ms (cache miss)
+17 silly packumentCache full:https://registry.npmjs.org/next set size:undefined disposed:false
+18 silly fetch manifest @opentelemetry/api@^1.1.0
+19 silly packumentCache full:https://registry.npmjs.org/@opentelemetry%2fapi cache-miss
+20 http fetch GET 200 https://registry.npmjs.org/@opentelemetry%2fapi 77ms (cache miss)
+21 silly packumentCache full:https://registry.npmjs.org/@opentelemetry%2fapi set size:undefined disposed:false
+22 silly fetch manifest @playwright/test@^1.41.2
+23 silly packumentCache full:https://registry.npmjs.org/@playwright%2ftest cache-miss
+24 http fetch GET 200 https://registry.npmjs.org/@playwright%2ftest 315ms (cache miss)
+25 silly packumentCache full:https://registry.npmjs.org/@playwright%2ftest set size:undefined disposed:false
+26 silly fetch manifest react@^18
+27 silly packumentCache full:https://registry.npmjs.org/react cache-miss
+28 http fetch GET 200 https://registry.npmjs.org/react 200ms (cache miss)
+29 silly packumentCache full:https://registry.npmjs.org/react set size:undefined disposed:false
+30 silly fetch manifest react-dom@^18
+31 silly packumentCache full:https://registry.npmjs.org/react-dom cache-miss
+32 http fetch GET 200 https://registry.npmjs.org/react-dom 439ms (cache miss)
+33 silly packumentCache full:https://registry.npmjs.org/react-dom set size:undefined disposed:false
+34 silly fetch manifest sass@^1.3.0
+35 silly packumentCache full:https://registry.npmjs.org/sass cache-miss
+36 http fetch GET 200 https://registry.npmjs.org/sass 66ms (cache miss)
+37 silly packumentCache full:https://registry.npmjs.org/sass set size:undefined disposed:false
+38 silly placeDep ROOT next@14.2.35 REPLACE for: biwenger-ai@1.0.0 want: 14.2.35
+39 silly fetch manifest @next/env@14.2.35
+40 silly packumentCache full:https://registry.npmjs.org/@next%2fenv cache-miss
+41 silly fetch manifest @next/swc-darwin-x64@14.2.33
+42 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-darwin-x64 cache-miss
+43 silly fetch manifest @next/swc-darwin-arm64@14.2.33
+44 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-darwin-arm64 cache-miss
+45 http fetch GET 200 https://registry.npmjs.org/@next%2fenv 329ms (cache miss)
+46 silly packumentCache full:https://registry.npmjs.org/@next%2fenv set size:undefined disposed:false
+47 silly fetch manifest @next/swc-linux-x64-gnu@14.2.33
+48 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-linux-x64-gnu cache-miss
+49 http fetch GET 200 https://registry.npmjs.org/@next%2fswc-darwin-arm64 419ms (cache miss)
+50 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-darwin-arm64 set size:undefined disposed:false
+51 silly fetch manifest @next/swc-linux-x64-musl@14.2.33
+52 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-linux-x64-musl cache-miss
+53 http fetch GET 200 https://registry.npmjs.org/@next%2fswc-darwin-x64 599ms (cache miss)
+54 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-darwin-x64 set size:undefined disposed:false
+55 silly fetch manifest @next/swc-win32-x64-msvc@14.2.33
+56 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-win32-x64-msvc cache-miss
+57 http fetch GET 200 https://registry.npmjs.org/@next%2fswc-linux-x64-gnu 317ms (cache miss)
+58 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-linux-x64-gnu set size:undefined disposed:false
+59 silly fetch manifest @next/swc-linux-arm64-gnu@14.2.33
+60 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-linux-arm64-gnu cache-miss
+61 http fetch GET 200 https://registry.npmjs.org/@next%2fswc-linux-x64-musl 455ms (cache miss)
+62 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-linux-x64-musl set size:undefined disposed:false
+63 silly fetch manifest @next/swc-win32-ia32-msvc@14.2.33
+64 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-win32-ia32-msvc cache-miss
+65 http fetch GET 200 https://registry.npmjs.org/@next%2fswc-win32-x64-msvc 340ms (cache miss)
+66 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-win32-x64-msvc set size:undefined disposed:false
+67 silly fetch manifest @next/swc-linux-arm64-musl@14.2.33
+68 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-linux-arm64-musl cache-miss
+69 http fetch GET 200 https://registry.npmjs.org/@next%2fswc-linux-arm64-gnu 313ms (cache miss)
+70 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-linux-arm64-gnu set size:undefined disposed:false
+71 silly fetch manifest @next/swc-win32-arm64-msvc@14.2.33
+72 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-win32-arm64-msvc cache-miss
+73 http fetch GET 200 https://registry.npmjs.org/@next%2fswc-win32-ia32-msvc 248ms (cache miss)
+74 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-win32-ia32-msvc set size:undefined disposed:false
+75 http fetch GET 200 https://registry.npmjs.org/@next%2fswc-linux-arm64-musl 305ms (cache miss)
+76 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-linux-arm64-musl set size:undefined disposed:false
+77 http fetch GET 200 https://registry.npmjs.org/@next%2fswc-win32-arm64-msvc 300ms (cache miss)
+78 silly packumentCache full:https://registry.npmjs.org/@next%2fswc-win32-arm64-msvc set size:undefined disposed:false
+79 silly placeDep ROOT @next/env@14.2.35 OK for: next@14.2.35 want: 14.2.35
+80 silly placeDep ROOT @next/swc-darwin-arm64@14.2.33 OK for: next@14.2.35 want: 14.2.33
+81 silly placeDep ROOT @next/swc-darwin-x64@14.2.33 OK for: next@14.2.35 want: 14.2.33
+82 silly placeDep ROOT @next/swc-linux-arm64-gnu@14.2.33 OK for: next@14.2.35 want: 14.2.33
+83 silly placeDep ROOT @next/swc-linux-arm64-musl@14.2.33 OK for: next@14.2.35 want: 14.2.33
+84 silly placeDep ROOT @next/swc-linux-x64-gnu@14.2.33 OK for: next@14.2.35 want: 14.2.33
+85 silly placeDep ROOT @next/swc-linux-x64-musl@14.2.33 OK for: next@14.2.35 want: 14.2.33
+86 silly placeDep ROOT @next/swc-win32-arm64-msvc@14.2.33 OK for: next@14.2.35 want: 14.2.33
+87 silly placeDep ROOT @next/swc-win32-ia32-msvc@14.2.33 OK for: next@14.2.35 want: 14.2.33
+88 silly placeDep ROOT @next/swc-win32-x64-msvc@14.2.33 OK for: next@14.2.35 want: 14.2.33
+89 silly reify mark retired [
+89 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\@next\\env'
+89 silly reify ]
+90 silly reify mark retired [
+90 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\@next\\swc-win32-x64-msvc'
+90 silly reify ]
+91 silly reify mark retired [
+91 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\next',
+91 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\.bin\\next',
+91 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\.bin\\next.cmd',
+91 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\.bin\\next.ps1'
+91 silly reify ]
+92 silly reify moves {
+92 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\@next\\env': 'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\@next\\.env-1m2H8j8Z',
+92 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\@next\\swc-win32-x64-msvc': 'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\@next\\.swc-win32-x64-msvc-n8QpFNcY',
+92 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\next': 'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\.next-4BXtWwkX',
+92 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\.bin\\next': 'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\.bin\\.next-9iv3ySzJ',
+92 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\.bin\\next.cmd': 'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\.bin\\.next.cmd-FdIa4Z1h',
+92 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\.bin\\next.ps1': 'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\.bin\\.next.ps1-YsyUqEWv'
+92 silly reify }
+93 verbose reify failed optional dependency C:\Users\dscanales\Documents\Codex\2026-04-27\hola\biwenger-ia-v3\biwenger-ia-v3\node_modules\@next\swc-win32-ia32-msvc
+94 silly reify mark deleted [
+94 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\@next\\swc-win32-ia32-msvc'
+94 silly reify ]
+95 verbose reify failed optional dependency C:\Users\dscanales\Documents\Codex\2026-04-27\hola\biwenger-ia-v3\biwenger-ia-v3\node_modules\@next\swc-win32-arm64-msvc
+96 silly reify mark deleted [
+96 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\@next\\swc-win32-arm64-msvc'
+96 silly reify ]
+97 verbose reify failed optional dependency C:\Users\dscanales\Documents\Codex\2026-04-27\hola\biwenger-ia-v3\biwenger-ia-v3\node_modules\@next\swc-linux-x64-musl
+98 silly reify mark deleted [
+98 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\@next\\swc-linux-x64-musl'
+98 silly reify ]
+99 verbose reify failed optional dependency C:\Users\dscanales\Documents\Codex\2026-04-27\hola\biwenger-ia-v3\biwenger-ia-v3\node_modules\@next\swc-linux-x64-gnu
+100 silly reify mark deleted [
+100 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\@next\\swc-linux-x64-gnu'
+100 silly reify ]
+101 verbose reify failed optional dependency C:\Users\dscanales\Documents\Codex\2026-04-27\hola\biwenger-ia-v3\biwenger-ia-v3\node_modules\@next\swc-linux-arm64-musl
+102 silly reify mark deleted [
+102 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\@next\\swc-linux-arm64-musl'
+102 silly reify ]
+103 verbose reify failed optional dependency C:\Users\dscanales\Documents\Codex\2026-04-27\hola\biwenger-ia-v3\biwenger-ia-v3\node_modules\@next\swc-linux-arm64-gnu
+104 silly reify mark deleted [
+104 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\@next\\swc-linux-arm64-gnu'
+104 silly reify ]
+105 verbose reify failed optional dependency C:\Users\dscanales\Documents\Codex\2026-04-27\hola\biwenger-ia-v3\biwenger-ia-v3\node_modules\@next\swc-darwin-x64
+106 silly reify mark deleted [
+106 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\@next\\swc-darwin-x64'
+106 silly reify ]
+107 verbose reify failed optional dependency C:\Users\dscanales\Documents\Codex\2026-04-27\hola\biwenger-ia-v3\biwenger-ia-v3\node_modules\@next\swc-darwin-arm64
+108 silly reify mark deleted [
+108 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\@next\\swc-darwin-arm64'
+108 silly reify ]
+109 verbose reify failed optional dependency C:\Users\dscanales\Documents\Codex\2026-04-27\hola\biwenger-ia-v3\biwenger-ia-v3\node_modules\fsevents
+110 silly reify mark deleted [
+110 silly reify   'C:\\Users\\dscanales\\Documents\\Codex\\2026-04-27\\hola\\biwenger-ia-v3\\biwenger-ia-v3\\node_modules\\fsevents'
+110 silly reify ]
+111 http cache next@https://registry.npmjs.org/next/-/next-14.2.35.tgz 0ms (cache hit)
+112 http cache @next/env@https://registry.npmjs.org/@next/env/-/env-14.2.35.tgz 0ms (cache hit)
+113 http cache @next/swc-win32-x64-msvc@https://registry.npmjs.org/@next/swc-win32-x64-msvc/-/swc-win32-x64-msvc-14.2.33.tgz 0ms (cache hit)
+114 silly tarball no local data for next@https://registry.npmjs.org/next/-/next-14.2.35.tgz. Extracting by manifest.
+115 silly tarball no local data for @next/env@https://registry.npmjs.org/@next/env/-/env-14.2.35.tgz. Extracting by manifest.
+116 silly tarball no local data for @next/swc-win32-x64-msvc@https://registry.npmjs.org/@next/swc-win32-x64-msvc/-/swc-win32-x64-msvc-14.2.33.tgz. Extracting by manifest.
+117 http fetch GET 200 https://registry.npmjs.org/@next/env/-/env-14.2.35.tgz 92ms (cache miss)
+118 http fetch GET 200 https://registry.npmjs.org/@next/swc-win32-x64-msvc/-/swc-win32-x64-msvc-14.2.33.tgz 4629ms (cache miss)
+119 http fetch GET 200 https://registry.npmjs.org/next/-/next-14.2.35.tgz 31025ms (cache miss)
+120 silly ADD
+121 silly ADD
+122 silly ADD
+123 silly ADD
+124 silly ADD
+125 silly ADD
+126 silly ADD
+127 silly ADD
+128 silly ADD
+129 silly CHANGE node_modules/next
+130 silly CHANGE node_modules/@next/swc-win32-x64-msvc
+131 silly CHANGE node_modules/@next/env
+132 verbose cwd C:\Users\dscanales\Documents\Codex\2026-04-27\hola\biwenger-ia-v3\biwenger-ia-v3
+133 verbose os Windows_NT 10.0.19045
+134 verbose node v22.21.0
+135 verbose npm  v10.9.4
+136 verbose exit 0
+137 info ok

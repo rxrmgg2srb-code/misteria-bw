@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --verde: #1a472a;
+  --verde-light: #22c55e;
+  --gold: #f59e0b;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #0a0f0a;
+  color: #f1f5f9;
+  min-height: 100vh;
+}
+
+.pitch-bg {
+  background: linear-gradient(180deg, #1a472a 0%, #15803d 40%, #166534 60%, #14532d 100%);
+}
+
+.card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+}
+
+.card-hover:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(34,197,94,0.3);
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: #16a34a;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-primary:hover { background: #15803d; }
+.btn-primary:disabled { background: #374151; cursor: not-allowed; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-fit { background: rgba(34,197,94,0.15); color: #4ade80; }
+.badge-doubt { background: rgba(251,191,36,0.15); color: #fbbf24; }
+.badge-injury { background: rgba(239,68,68,0.15); color: #f87171; }
+
+.glow { box-shadow: 0 0 20px rgba(34,197,94,0.2); }
+
+input, select, textarea {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: #f1f5f9;
+  padding: 8px 12px;
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s;
+}
+input:focus, select:focus { border-color: #22c55e; }
+input::placeholder { color: #6b7280; }
+
+select option { background: #111827; }

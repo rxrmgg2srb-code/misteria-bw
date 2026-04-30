@@ -1,0 +1,156 @@
+
+> biwenger-ai@1.0.0 dev
+> next dev --port 3002
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3002
+  - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 19.5s
+ ○ Compiling / ...
+ ✓ Compiled / in 9.1s (517 modules)
+ GET / 200 in 10102ms
+ ○ Compiling /analyzer ...
+ ✓ Compiled /analyzer in 17.9s (539 modules)
+ GET /analyzer 200 in 1475ms
+ ○ Compiling /api/players ...
+ ✓ Compiled /api/players in 1426ms (307 modules)
+ GET /api/players 200 in 2007ms
+ GET /api/players 200 in 228ms
+ GET /analyzer 200 in 158ms
+ GET /api/players 200 in 30ms
+ GET /analyzer 200 in 64ms
+ GET /api/players 200 in 48ms
+ GET /api/players 200 in 47ms
+ ○ Compiling /api/flags ...
+ ✓ Compiled /api/flags in 637ms (310 modules)
+ POST /api/flags 200 in 1744ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 982ms (542 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 1195ms
+ ✓ Compiled /api/analyze in 320ms (311 modules)
+ POST /api/analyze 200 in 1395ms
+ ✓ Compiled /api/players in 235ms (312 modules)
+ GET /api/players 200 in 307ms
+ GET /api/players 200 in 55ms
+ POST /api/analyze 200 in 567ms
+ GET / 200 in 215ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 871ms (528 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 1228ms
+ ✓ Compiled /api/players in 317ms (308 modules)
+ GET /api/players 200 in 447ms
+ GET /api/players 200 in 151ms
+ ✓ Compiled /api/flags in 430ms (310 modules)
+ POST /api/flags 200 in 1793ms
+ ✓ Compiled /api/analyze in 260ms (312 modules)
+ POST /api/analyze 400 in 336ms
+ POST /api/analyze 200 in 1396ms
+ ✓ Compiled /api/players in 317ms (307 modules)
+ GET /api/players 200 in 401ms
+ GET /api/players 200 in 122ms
+ ✓ Compiled /api/analyze in 221ms (312 modules)
+ POST /api/analyze 200 in 1272ms
+ GET /api/players 200 in 100ms
+ GET /api/players 200 in 49ms
+ POST /api/analyze 200 in 552ms
+ GET /api/players 200 in 53ms
+ GET /api/players 200 in 47ms
+ POST /api/analyze 200 in 579ms
+ GET / 200 in 307ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1945ms (542 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 2634ms
+ ✓ Compiled /api/players in 204ms (308 modules)
+ GET /api/players 200 in 401ms
+ GET /api/players 200 in 62ms
+ ✓ Compiled /api/flags in 477ms (310 modules)
+ POST /api/flags 200 in 1619ms
+ ✓ Compiled /api/analyze in 162ms (312 modules)
+ POST /api/analyze 200 in 855ms
+ GET / 200 in 296ms
+ ✓ Compiled /api/players in 336ms (307 modules)
+ GET /api/players 200 in 595ms
+ GET /api/players 200 in 177ms
+ ✓ Compiled /api/analyze in 277ms (310 modules)
+ POST /api/analyze 200 in 1653ms
+ GET / 200 in 146ms
+ ✓ Compiled /api/players in 278ms (307 modules)
+ GET /api/players 200 in 347ms
+ GET /api/players 200 in 60ms
+ ✓ Compiled /api/analyze in 179ms (312 modules)
+ POST /api/analyze 200 in 1295ms
+ GET / 200 in 115ms
+ GET /api/players 200 in 69ms
+ GET /api/players 200 in 40ms
+ POST /api/analyze 200 in 1005ms
+ ✓ Compiled in 6s (539 modules)
+ ✓ Compiled in 564ms (262 modules)
+ ✓ Compiled in 466ms (262 modules)
+ ✓ Compiled in 1123ms (262 modules)
+ ✓ Compiled in 445ms (262 modules)
+ ✓ Compiled in 396ms (262 modules)
+ ✓ Compiled in 389ms (262 modules)
+ ✓ Compiled in 540ms (262 modules)
+ ✓ Compiled in 681ms (262 modules)
+ ✓ Compiled in 387ms (262 modules)
+ ✓ Compiled in 299ms (262 modules)
+ ○ Compiling /api/players ...
+ ✓ Compiled /api/players in 1368ms (311 modules)
+ ✓ Compiled (313 modules)
+ POST /api/analyze 400 in 2628ms
+ GET /api/players 200 in 2722ms
+ ✓ Compiled in 1545ms (575 modules)
+ GET /api/players 200 in 176ms
+ ✓ Compiled in 1031ms (570 modules)
+ GET /api/players 200 in 68ms
+ GET /api/players 200 in 49ms
+ GET /api/players 200 in 63ms
+ GET /api/players 200 in 50ms
+ ✓ Compiled in 1341ms (570 modules)
+ ✓ Compiled in 752ms (570 modules)
+ GET /api/players 200 in 122ms
+ GET /api/players 200 in 46ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 4.4s (751 modules)
+ GET / 500 in 5773ms
+ GET /analyzer 500 in 55ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 796ms (349 modules)
+ GET /favicon.ico 200 in 918ms
+ ✓ Compiled in 799ms (448 modules)
+ GET /analyzer 200 in 29ms
+ GET /analyzer 500 in 47ms
+ GET /favicon.ico 200 in 24ms
+ ✓ Compiled in 866ms (448 modules)
+ GET /analyzer 500 in 67ms
+ GET /favicon.ico 200 in 21ms
+ ✓ Compiled in 437ms (448 modules)
+ GET /analyzer 500 in 60ms
+ GET /favicon.ico 200 in 21ms
+ ✓ Compiled in 502ms (448 modules)
+ GET /analyzer 500 in 55ms
+ GET /favicon.ico 200 in 21ms
+ ✓ Compiled in 486ms (448 modules)
+ GET /analyzer 500 in 50ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1186ms (786 modules)
+ GET /_next/static/chunks/main.js 404 in 1479ms
+ GET /_next/static/chunks/react-refresh.js 404 in 1474ms
+ GET /_next/static/chunks/pages/_app.js 404 in 1207ms
+ GET /_next/static/chunks/pages/_error.js 404 in 37ms
+ GET /favicon.ico 500 in 37ms
+ ○ Compiling /api/players ...
+ ✓ Compiled /api/players in 621ms (378 modules)
+ GET /api/players 200 in 9777ms
+ GET /api/players 200 in 6682ms
+ GET /api/players 200 in 12112ms
+ GET /api/players 200 in 12566ms
+ ○ Compiling /api/analyze ...
+ ✓ Compiled /api/analyze in 980ms (353 modules)
+ POST /api/analyze 200 in 7923ms
+ ✓ Compiled in 1446ms (801 modules)
+ GET /api/players 500 in 3680ms
+ POST /api/analyze 400 in 162ms
+[?25h
