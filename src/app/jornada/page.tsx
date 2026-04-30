@@ -180,7 +180,7 @@ export default function JornadaPage() {
           <Link href="/analyzer" style={{ color: '#d1d5db', textDecoration: 'none' }}>Copiloto</Link>
           <Link href="/mejor-11" style={{ color: '#d1d5db', textDecoration: 'none' }}>🏆 Mejor 11</Link>
           <Link href="/jornada" style={{ color: '#22c55e', textDecoration: 'none', fontWeight: 600 }}>📊 Jornada</Link>
-          <Link href="/noticias" style={{ color: '#6b7280', textDecoration: 'none' }}>Noticias</Link>
+          {/* <Link href="/noticias" style={{ color: '#6b7280', textDecoration: 'none' }}>Noticias</Link> */}
         </div>
       </nav>
 

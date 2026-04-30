@@ -186,7 +186,7 @@ export default function Mejor11Page() {
             <a href="/analyzer" style={{ color: '#d1d5db', textDecoration: 'none' }}>Copiloto</a>
             <a href="/mejor-11" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: 600 }}>🏆 Mejor 11</a>
             <a href="/jornada" style={{ color: '#22c55e', textDecoration: 'none', fontWeight: 600 }}>📊 Jornada</a>
-            <a href="/noticias" style={{ color: '#6b7280', textDecoration: 'none' }}>Noticias</a>
+            {/* <a href="/noticias" style={{ color: '#6b7280', textDecoration: 'none' }}>Noticias</a> */}
           </div>
         </div>
       </header>
