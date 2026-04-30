@@ -68,8 +68,8 @@ export default function Home() {
             <Link href="/mejor-11" style={{ background: '#1e3a8a', color: '#93c5fd', padding: '15px 28px', borderRadius: 10, textDecoration: 'none', fontWeight: 800, fontSize: 16, border: '1px solid #3b82f6' }}>
               🏆 Ver Mejor 11
             </Link>
-            <Link href="/noticias" style={{ background: 'rgba(255,255,255,0.05)', color: '#e5e7eb', padding: '15px 28px', borderRadius: 10, textDecoration: 'none', fontWeight: 700, fontSize: 16, border: '1px solid rgba(255,255,255,0.10)' }}>
-              Ver centro de noticias
+            <Link href="/jornada" style={{ background: 'rgba(255,255,255,0.05)', color: '#e5e7eb', padding: '15px 28px', borderRadius: 10, textDecoration: 'none', fontWeight: 700, fontSize: 16, border: '1px solid rgba(255,255,255,0.10)' }}>
+              📊 Ver Gangas de la Jornada
             </Link>
           </div>
         </div>
