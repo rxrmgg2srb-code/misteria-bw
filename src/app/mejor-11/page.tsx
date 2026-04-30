@@ -173,17 +173,21 @@ export default function Mejor11Page() {
 
   return (
     <main style={{ minHeight: '100vh', background: '#030712', color: '#f9fafb', fontFamily: 'system-ui, sans-serif' }}>
-      <header style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.05)', background: '#0a0a0a' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 800, letterSpacing: '-0.5px' }}>
-              El Mejor 11 <span style={{ color: '#3b82f6' }}>Absoluto</span>
-            </h1>
-            <p style={{ margin: '4px 0 0 0', color: '#9ca3af', fontSize: '14px' }}>
-              La alineación perfecta de LaLiga para esta jornada, generada por nuestro motor de 32 dimensiones.
-            </p>
+      <header style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', background: '#0a0a0a' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 9, background: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: 'white' }}>B</div>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#f3f4f6' }}>BiwengerIA</div>
+              <div style={{ fontSize: 12, color: '#6b7280' }}>Copiloto fantasy</div>
+            </div>
           </div>
-          <a href="/analyzer" style={{ color: '#60a5fa', textDecoration: 'none', fontSize: 14, fontWeight: 600 }}>&larr; Volver a mi plantilla</a>
+          <div style={{ display: 'flex', gap: 14, fontSize: 14, flexWrap: 'wrap' }}>
+            <a href="/analyzer" style={{ color: '#d1d5db', textDecoration: 'none' }}>Copiloto</a>
+            <a href="/mejor-11" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: 600 }}>🏆 Mejor 11</a>
+            <a href="/jornada" style={{ color: '#22c55e', textDecoration: 'none', fontWeight: 600 }}>📊 Jornada</a>
+            <a href="/noticias" style={{ color: '#6b7280', textDecoration: 'none' }}>Noticias</a>
+          </div>
         </div>
       </header>
 
