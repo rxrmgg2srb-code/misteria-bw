@@ -561,22 +561,53 @@ function bounceBackSwing(player: SquadPlayer) {
   if (player.status !== 'fit' || context.recentAppearances === 0 || !player.lastFive || player.lastFive.length < 2) return 0;
   
   const isPremium = player.avgPts >= 5 || player.price >= 8000000;
-  const blankedLast = player.lastFive[0] <= 0 && player.lastFive[1] > 0;
+  
+  // Contar cuántos roscos consecutivos lleva (empezando por el más reciente)
+  let consecutiveZeros = 0;
+  for (const v of player.lastFive) {
+    if (v <= 0) consecutiveZeros++;
+    else break;
+  }
+  
+  // Solo aplica si el ÚLTIMO partido fue rosco pero el anterior puntuó (y no lleva más de 1 rosco seguido)
+  const blankedLast = consecutiveZeros === 1 && player.lastFive[1] > 0;
   
   if (isPremium && blankedLast) {
-    return 1.8;
+    // Bonus proporcional a su media: cuanto mejor es, más esperamos que rebote
+    const qualityBonus = clamp((player.avgPts - 5) * 0.15, 0, 0.6);
+    return 1.8 + qualityBonus;
   }
+  
+  // Para no-premium: rebote más suave si la jornada anterior fue excepcional
+  if (!isPremium && blankedLast && player.lastFive[1] >= 8) {
+    return 0.8;
+  }
+  
   return 0;
 }
 
 function momentumSwing(player: SquadPlayer) {
   if (!player.lastFive || player.lastFive.length < 3) return 0;
-  if (player.lastFive[0] > player.lastFive[1] && player.lastFive[1] > player.lastFive[2] && player.lastFive[0] >= 6) {
-    return 1.8;
-  }
-  if (player.lastFive[0] >= 6 && player.lastFive[1] >= 6 && player.lastFive[2] >= 6) {
-    return 1.4;
-  }
+  const [j0, j1, j2] = player.lastFive;
+  
+  // Racha de élite: 3 partidos seguidos con 6+ puntos → bonus máximo
+  if (j0 >= 6 && j1 >= 6 && j2 >= 6) return 1.8;
+  
+  // Escalera perfecta al alza con buen nivel final
+  if (j0 > j1 && j1 > j2 && j0 >= 6) return 1.6;
+  
+  // Tendencia alcista parcial: al menos 2 de los 3 últimos subiendo y nivel decente
+  if (j0 >= 6 && j1 >= 4 && j0 > j2) return 1.0;
+  
+  // Dos jornadas muy buenas aunque no perfectamente ordenadas
+  if (j0 >= 6 && j1 >= 6) return 1.4;
+  
+  // Tendencia ligeramente positiva: última jornada mejor que la penúltima
+  if (j0 > j1 && j0 >= 5 && j1 >= 3) return 0.5;
+  
+  // Penalizar caída libre: última jornada muy por debajo de su nivel
+  if (j0 < j2 && j1 < j2 && j0 <= 2 && player.avgPts >= 4) return -0.6;
+  
   return 0;
 }
 
@@ -633,10 +664,21 @@ function ceilingSwing(player: SquadPlayer, strategy: AnalysisStrategy) {
 
 function priceExpectationSwing(player: SquadPlayer) {
   const priceM = player.price / 1e6;
-  if (priceM >= 12 && player.avgPts < 4) return -1.5;
-  if (priceM >= 8 && player.avgPts < 3) return -1.2;
-  if (priceM <= 4 && player.avgPts >= 5) return 1.2;
-  if (priceM <= 6 && player.avgPts >= 4.5) return 0.6;
+  
+  // Penalizaciones por caros sin rendimiento (escaladas por cuánto dinero "bloquean")
+  if (priceM >= 15 && player.avgPts < 4) return -2.5;  // Lujo inútil: penalización severa
+  if (priceM >= 12 && player.avgPts < 4) return -2.0;  // Mejorado: de -1.5 a -2.0
+  if (priceM >= 12 && player.avgPts < 5) return -0.8;  // Caro con rendimiento mediocre
+  if (priceM >= 8 && player.avgPts < 3) return -1.8;   // Mejorado: de -1.2 a -1.8
+  if (priceM >= 8 && player.avgPts < 4) return -0.6;   // Algo caro y flojo
+  
+  // Bonus por jugadores baratos que rinden mucho (las verdaderas gangas)
+  if (priceM <= 3 && player.avgPts >= 5) return 2.0;   // Ganga total
+  if (priceM <= 4 && player.avgPts >= 5) return 1.5;   // Mejorado: de 1.2 a 1.5
+  if (priceM <= 4 && player.avgPts >= 4) return 0.8;   // Buena relación calidad/precio
+  if (priceM <= 6 && player.avgPts >= 4.5) return 0.6; // Precio razonable y rinde bien
+  if (priceM <= 6 && player.avgPts >= 4) return 0.3;   // Relación decente
+  
   return 0;
 }
 
