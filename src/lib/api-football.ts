@@ -35,15 +35,15 @@ async function apiGet(path: string): Promise<Record<string, unknown>> {
   if (!KEY) return {};
 
   try {
-    const cacheBuster = path.includes('?') ? '&cb=3' : '?cb=3';
-    const url = `${BASE}/${path}${cacheBuster}`;
+    const url = `${BASE}/${path}`;
     apiDebug.lastUrl = url;
     
     const res = await fetch(url, {
       headers: {
         'x-apisports-key': KEY,
+        'x-vercel-cache-bust': 'v5'
       },
-      next: { revalidate: 604800 }, // Cache 7 days
+      next: { revalidate: 3600 }, // Cache 1 hour
     });
     
     apiDebug.lastStatus = res.status;
