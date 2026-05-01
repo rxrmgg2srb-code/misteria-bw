@@ -194,12 +194,15 @@ function selectEleven(
     const eleven = [...pt, ...df, ...mc, ...dl] as ScoredPlayer[];
     if (eleven.length !== 11) continue;
 
-    let avgScore = eleven.reduce((s, p) => s + p._finalScore, 0) / 11;
+    const reqDf = preferredFormation ? parseInt(preferredFormation.split('-')[0], 10) : null;
     
-    // Massive bonus to force the real-life preferred formation
-    if (preferredFormation && fStr === preferredFormation) {
-      avgScore += 1000;
+    // Force the AI to use the real-life number of defenders. 
+    // This allows flexibility in attack (e.g. 4-3-3 instead of 4-5-1) to fit star wingers.
+    if (reqDf && nDf !== reqDf) {
+      continue;
     }
+
+    const avgScore = eleven.reduce((s, p) => s + p._finalScore, 0) / 11;
 
     if (avgScore > bestScore) {
       bestScore = avgScore;
