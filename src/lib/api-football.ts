@@ -23,8 +23,9 @@ function mapPos(pos: string): string {
 
 async function apiGet(path: string): Promise<Record<string, unknown>> {
   const KEY  = process.env.APIFOOTBALL_KEY || '';
-  const HOST = process.env.APIFOOTBALL_HOST || 'free-api-live-football-data.p.rapidapi.com';
-  const BASE = 'https://free-api-live-football-data.p.rapidapi.com';
+  // Force the official API-Football host
+  const HOST = 'api-football-v1.p.rapidapi.com';
+  const BASE = 'https://api-football-v1.p.rapidapi.com/v3';
 
   if (!KEY) return {};
 
@@ -33,7 +34,6 @@ async function apiGet(path: string): Promise<Record<string, unknown>> {
       headers: {
         'x-rapidapi-key': KEY,
         'x-rapidapi-host': HOST,
-        'Content-Type': 'application/json',
       },
       next: { revalidate: 604800 }, // Cache 7 days
     });
@@ -46,50 +46,50 @@ async function apiGet(path: string): Promise<Record<string, unknown>> {
 
 /** Get all matches for La Liga — returns the completed recent ones */
 async function getRecentMatchIds(): Promise<string[]> {
-  const LALIGA_ID = process.env.APIFOOTBALL_LALIGA_ID || '87';
-  const data = await apiGet(`football-get-all-matches-by-league?leagueid=${LALIGA_ID}`);
+  // Official La Liga ID is 140
+  const LALIGA_ID = '140';
+  
+  // Determine current season (starts around August, so if month is < 7, it's last year)
+  const date = new Date();
+  const season = date.getMonth() < 7 ? date.getFullYear() - 1 : date.getFullYear();
+
+  const data = await apiGet(`fixtures?league=${LALIGA_ID}&season=${season}`);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const events: any[] = (data as any)?.response?.matches || (data as any)?.matches || [];
+  const events: any[] = (data as any)?.response || [];
 
   const completed = events.filter((e) => {
-    const s = e.status || e.eventStatus || {};
-    return s.finished === true || (s.reason && s.reason.short === 'FT');
+    const status = e.fixture?.status?.short;
+    return ['FT', 'AET', 'PEN'].includes(status);
   });
 
   completed.sort((a, b) => {
-    const dA = new Date(a.status?.utcTime || a.startTimestamp || 0).getTime();
-    const dB = new Date(b.status?.utcTime || b.startTimestamp || 0).getTime();
+    const dA = a.fixture?.timestamp || 0;
+    const dB = b.fixture?.timestamp || 0;
     return dB - dA;
   });
 
-  return completed.slice(0, 50).map((e) => String(e.id || e.eventId || e.event_id || ''));
+  return completed.slice(0, 50).map((e) => String(e.fixture?.id));
 }
 
 /** Extracts starters from a lineup response */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractStarters(lineupData: any): RealLineupPlayer[] {
+function extractStarters(teamData: any): RealLineupPlayer[] {
   const players: RealLineupPlayer[] = [];
-  const lineup =
-    lineupData?.response?.lineup ||
-    lineupData?.lineup ||
-    lineupData?.response ||
-    lineupData?.players ||
-    [];
+  const startXI = teamData?.startXI || [];
 
-  const arr = Array.isArray(lineup) ? lineup : [];
+  for (const item of startXI) {
+    const p = item.player;
+    if (!p || !p.name) continue;
 
-  for (const p of arr) {
-    const name = p.name || p.playerName || p.player?.name || '';
-    const pos  = p.position || p.pos || p.player?.position || '';
-    const num  = Number(p.number || p.shirtNumber || p.player?.number || 0);
-    const isStarter = p.starter !== false && p.isStarter !== false && p.startXI !== false;
-
-    if (name) {
-      players.push({ name, pos: mapPos(pos), number: num, isStarter });
-    }
+    players.push({
+      name: p.name,
+      pos: mapPos(p.pos),
+      number: p.number || 0,
+      isStarter: true // startXI array only contains starters
+    });
   }
 
-  return players.filter((p) => p.isStarter);
+  return players;
 }
 
 /** Fetch lineup for one match (home + away) */
@@ -99,19 +99,14 @@ async function getMatchLineup(eventId: string): Promise<{
 } | null> {
   if (!eventId) return null;
 
-  const [homeData, awayData] = await Promise.all([
-    apiGet(`football-get-hometeam-lineup?eventid=${eventId}`),
-    apiGet(`football-get-awayteam-lineup?eventid=${eventId}`),
-  ]);
+  const data = await apiGet(`fixtures/lineups?fixture=${eventId}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const response: any[] = data?.response || [];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const homeTeam = (homeData as any)?.response?.teamName || (homeData as any)?.teamName || '';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const awayTeam = (awayData as any)?.response?.teamName || (awayData as any)?.teamName || '';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const homeFormation = (homeData as any)?.response?.formation || (homeData as any)?.formation || '4-3-3';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const awayFormation = (awayData as any)?.response?.formation || (awayData as any)?.formation || '4-3-3';
+  if (response.length !== 2) return null; // Needs both teams
+
+  const homeData = response[0];
+  const awayData = response[1];
 
   const homeStarters = extractStarters(homeData);
   const awayStarters = extractStarters(awayData);
@@ -119,8 +114,16 @@ async function getMatchLineup(eventId: string): Promise<{
   if (!homeStarters.length && !awayStarters.length) return null;
 
   return {
-    home: { teamName: homeTeam, formation: homeFormation, starters: homeStarters },
-    away: { teamName: awayTeam, formation: awayFormation, starters: awayStarters },
+    home: {
+      teamName: homeData.team?.name || 'Home',
+      formation: homeData.formation || '4-3-3',
+      starters: homeStarters,
+    },
+    away: {
+      teamName: awayData.team?.name || 'Away',
+      formation: awayData.formation || '4-3-3',
+      starters: awayStarters,
+    },
   };
 }
 
