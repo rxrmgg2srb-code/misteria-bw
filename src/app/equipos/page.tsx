@@ -58,6 +58,8 @@ type PlayerSlot = {
   price: number;
   gamesPlayed: number;
   titularity: number;
+  recencyScore: number;
+  recentAppearances: number;
   advancedScore: number;
   status: string;
   blankStreak: number;
@@ -127,7 +129,7 @@ function PitchWithPlayers({
       {/* Players */}
       {points.map(({ player, x, y }) => {
         const initials = player.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
-        const titStyle = player.titularity >= 75 ? '#4ade80' : player.titularity >= 50 ? '#fbbf24' : '#f87171';
+        const titStyle = player.recentAppearances >= 4 ? '#4ade80' : player.recentAppearances >= 2 ? '#fbbf24' : '#f87171';
         return (
           <g key={player.id}>
             {/* Shadow */}
@@ -138,10 +140,10 @@ function PitchWithPlayers({
             <text x={x} y={y + 5} textAnchor="middle" fontSize={11} fontWeight="800" fill={teamMeta.text}>
               {initials}
             </text>
-            {/* Titularity ring */}
+            {/* Recency ring: appearances in last 5 matches */}
             <circle cx={x + 19} cy={y - 19} r={9} fill="#0f172a" stroke={titStyle} strokeWidth={1.5} />
             <text x={x + 19} y={y - 15} textAnchor="middle" fontSize={8} fontWeight="800" fill={titStyle}>
-              {player.titularity}%
+              {player.recentAppearances}/5
             </text>
             {/* Name background */}
             <rect x={x - 40} y={y + 30} width={80} height={18} fill="rgba(0,0,0,0.72)" rx={5} />
@@ -349,11 +351,11 @@ export default function EquiposPage() {
                         </span>
                         <div style={{ textAlign: 'right' }}>
                           <div style={{
-                            color: p.advancedScore >= 75 ? '#4ade80' : p.advancedScore >= 50 ? '#fbbf24' : '#f87171',
-                            fontWeight: 700,
-                            fontSize: 13
-                          }}>{p.advancedScore}pts IA</div>
-                          <div style={{ color: '#6b7280', fontSize: 11 }}>{p.titularity}% histórico</div>
+                            color: p.recentAppearances >= 4 ? '#4ade80' : p.recentAppearances >= 2 ? '#fbbf24' : '#f87171',
+                            fontWeight: 800,
+                            fontSize: 15
+                          }}>{p.recentAppearances}/5 últimas</div>
+                          <div style={{ color: '#6b7280', fontSize: 11 }}>{p.titularity}% temporada</div>
                         </div>
                       </div>
                       );
@@ -365,16 +367,16 @@ export default function EquiposPage() {
                     <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', marginBottom: 8 }}>LEYENDA TITULARIDAD</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-                        <span style={{ color: '#4ade80', fontWeight: 700 }}>≥75%</span>
+                        <span style={{ color: '#4ade80', fontWeight: 700 }}>4-5/5</span>
                         <span style={{ color: '#9ca3af' }}>Titular indiscutible</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-                        <span style={{ color: '#fbbf24', fontWeight: 700 }}>50-74%</span>
+                        <span style={{ color: '#fbbf24', fontWeight: 700 }}>2-3/5</span>
                         <span style={{ color: '#9ca3af' }}>Probable titular</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-                        <span style={{ color: '#f87171', fontWeight: 700 }}>&lt;50%</span>
-                        <span style={{ color: '#9ca3af' }}>Rotativo</span>
+                        <span style={{ color: '#f87171', fontWeight: 700 }}>0-1/5</span>
+                        <span style={{ color: '#9ca3af' }}>Suplente/Rotativo</span>
                       </div>
                     </div>
                   </div>

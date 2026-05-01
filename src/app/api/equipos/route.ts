@@ -9,120 +9,122 @@ function clamp(v: number, min: number, max: number) {
 }
 
 /**
- * ADVANCED TITULARITY SCORE (0–100)
+ * RECONSTRUCTED XI APPROACH
  *
- * Combines 6 reliability signals:
- *  1. Historical titularity     (gamesPlayed / maxGames)
- *  2. Recent titularity L5      (appearances in last 5 matches)
- *  3. Recent titularity L3      (appearances in last 3 — heavily weighted)
- *  4. Total recent blank penalty (total 0s in last 5, not just consecutive)
- *  5. Consecutive blank streak  (extra hit for consecutive 0s at start)
- *  6. Doubtful / rotation discounts
+ * For each team we rebuild the actual XI from each of the last 5 matchdays:
+ *   - lastFive[0] = most recent matchday
+ *   - lastFive[i] > 0 → the player was on the pitch that day
+ *
+ * From those 5 reconstructed XIs we calculate a weighted recency score.
+ * More recent matchdays carry more weight.
  */
-function advancedTitularity(
-  player: Player,
-  maxGames: number,
-  teamIsRotating: boolean
-): number {
-  // ── 1. Historical titularity (0–100)
-  const historical = maxGames > 0 ? (player.gamesPlayed / maxGames) * 100 : 0;
 
-  // ── 2. Recent titularity last 5
-  const last5 = player.lastFive.slice(0, 5);
-  const appearances5 = last5.filter((v) => v > 0).length;
-  const recentTit5 = last5.length > 0 ? (appearances5 / last5.length) * 100 : historical;
+type ScoredPlayer = Player & {
+  _recentAppearances: number;   // 0–5: how many of last 5 rounds they appeared
+  _recencyScore: number;         // 0–100: weighted recent titularity
+  _advancedScore: number;        // 0–100: backup signal (form, status, etc.)
+  _finalScore: number;           // composite
+  _blankStreak: number;
+};
 
-  // ── 3. Recent titularity last 3 (more recent = more reliable signal)
-  const last3 = player.lastFive.slice(0, 3);
-  const appearances3 = last3.filter((v) => v > 0).length;
-  const recentTit3 = last3.length > 0 ? (appearances3 / last3.length) * 100 : recentTit5;
+/** Weights for each round index: index 0 = most recent */
+const ROUND_WEIGHTS = [3, 2.5, 2, 1.5, 1]; // sum = 10
 
-  // ── 4. Total recent blanks penalty (catches players like Eyong who play
-  //    occasionally but are mostly reserve — even if blanks are not consecutive)
-  const totalBlanks5 = last5.filter((v) => v <= 0).length;
-  // Scale: 0 blanks → 0 penalty, 3+ blanks → 45+ penalty (big hit)
-  const totalBlankPenalty = totalBlanks5 * 15; // −15 pts per blank in last 5
+function buildReconstructedScores(
+  teamPlayers: Player[],
+  maxGames: number
+): Map<number, ScoredPlayer> {
+  const result = new Map<number, ScoredPlayer>();
+  const maxRounds = 5;
+  const maxWeight = ROUND_WEIGHTS.slice(0, maxRounds).reduce((s, w) => s + w, 0);
 
-  // ── 5. Consecutive blank streak penalty (extra hit on top of #4)
-  let consecutiveBlanks = 0;
-  for (let i = 0; i < Math.min(3, player.lastFive.length); i++) {
-    if (player.lastFive[i] <= 0) consecutiveBlanks++;
-    else break;
+  for (const p of teamPlayers) {
+    // ── Step 1: For each of the last 5 rounds, did this player play?
+    const roundsPlayed: number[] = [];
+    for (let i = 0; i < Math.min(maxRounds, p.lastFive.length); i++) {
+      if (p.lastFive[i] > 0) roundsPlayed.push(i);
+    }
+
+    // ── Step 2: Recency score (weighted appearances)
+    const recentAppearances = roundsPlayed.length;
+    const weightedSum = roundsPlayed.reduce((sum, i) => sum + (ROUND_WEIGHTS[i] ?? 0), 0);
+    const recencyScore = maxWeight > 0 ? (weightedSum / maxWeight) * 100 : 0;
+
+    // ── Step 3: Historical titularity as backup signal
+    const historical = maxGames > 0 ? (p.gamesPlayed / maxGames) * 100 : 0;
+
+    // ── Step 4: Status penalties
+    const doubtfulPenalty = p.status === 'doubtful' ? 20 : 0;
+
+    // ── Step 5: Consecutive blank streak
+    let blankStreak = 0;
+    for (let i = 0; i < Math.min(3, p.lastFive.length); i++) {
+      if (p.lastFive[i] <= 0) blankStreak++;
+      else break;
+    }
+
+    // Advanced score combines recency + history - penalties
+    const advancedScore = clamp(
+      recencyScore * 0.70 + historical * 0.30 - doubtfulPenalty,
+      0, 100
+    );
+
+    // Final score: recency is the dominant signal (80%)
+    const finalScore = recencyScore * 0.80 + advancedScore * 0.20;
+
+    result.set(p.id, {
+      ...p,
+      _recentAppearances: recentAppearances,
+      _recencyScore: Math.round(recencyScore),
+      _advancedScore: Math.round(advancedScore),
+      _finalScore: Math.round(finalScore),
+      _blankStreak: blankStreak,
+    });
   }
-  const consecutivePenalty = consecutiveBlanks * 18; // −18 additional per consecutive
 
-  // ── 6. Status and team discount
-  const doubtfulPenalty = player.status === 'doubtful' ? 22 : 0;
-  const rotationPenalty = teamIsRotating && historical < 80 ? 10 : 0;
-
-  // ── Weighted blend: last3 (50%) + last5 (25%) + historical (25%)
-  // Heavy recency bias to detect players who have lost their spot
-  const blended = recentTit3 * 0.50 + recentTit5 * 0.25 + historical * 0.25;
-
-  // ── Context boost from player-context model
-  const contextBoost = (player.context?.estimatedStartConfidence ?? 0) * 8;
-
-  const raw = blended + contextBoost
-    - totalBlankPenalty
-    - consecutivePenalty
-    - doubtfulPenalty
-    - rotationPenalty;
-
-  return clamp(raw, 0, 100);
+  return result;
 }
 
-/** Returns true if this team likely rotates due to extra competition load */
+/** If only 1 available player exists for a position, guarantee they start */
+function applyScarcityBonus(scored: Map<number, ScoredPlayer>, candidates: ScoredPlayer[]) {
+  if (candidates.length === 1) {
+    const p = scored.get(candidates[0].id);
+    if (p) { p._recencyScore = 100; p._finalScore = 100; }
+  }
+}
+
+/** Detect rotation teams (playing multiple competitions) */
 function detectRotationTeam(teamPlayers: Player[], maxGames: number): boolean {
-  // If many players have played significantly more matches than league rounds,
-  // they're competing in cups / Europe
   const playedAvg =
     teamPlayers.reduce((s, p) => s + p.gamesPlayed, 0) / (teamPlayers.length || 1);
   return playedAvg > maxGames * 1.15;
 }
 
-/** Position-scarcity guarantee: if only 1 fit player in a position, they're 100% */
-function applyScarcityBonus(
-  candidates: Player[],
-  scores: Map<number, number>
-): void {
-  if (candidates.length === 1) {
-    scores.set(candidates[0].id, 100);
-  }
-}
-
-// ─── Eleven selector ────────────────────────────────────────────────────────
+// ─── Eleven Selector ─────────────────────────────────────────────────────────
 
 function selectEleven(
   available: Player[],
-  maxGames: number,
-  teamIsRotating: boolean
-): { eleven: Player[]; formation: string; confidence: number } {
-  // Compute advanced titularity for every available player
-  const scores = new Map<number, number>();
+  scored: Map<number, ScoredPlayer>
+): { eleven: ScoredPlayer[]; formation: string; confidence: number } {
+  // Group available players by position
+  const byPos: Record<string, ScoredPlayer[]> = { PT: [], DF: [], MC: [], DL: [] };
   for (const p of available) {
-    scores.set(p.id, advancedTitularity(p, maxGames, teamIsRotating));
+    const sp = scored.get(p.id);
+    if (sp && byPos[sp.pos]) byPos[sp.pos].push(sp);
   }
 
-  // Apply position-scarcity guarantee per position
-  const byPos: Record<string, Player[]> = { PT: [], DF: [], MC: [], DL: [] };
-  for (const p of available) {
-    if (byPos[p.pos]) byPos[p.pos].push(p);
-  }
+  // Apply scarcity guarantee per position
   for (const pos of ['PT', 'DF', 'MC', 'DL']) {
-    applyScarcityBonus(byPos[pos], scores);
+    applyScarcityBonus(scored, byPos[pos]);
   }
 
-  // Sort each position group by advanced titularity score descending
-  const sortedByPos: Record<string, Player[]> = {};
-  for (const pos of ['PT', 'DF', 'MC', 'DL']) {
-    sortedByPos[pos] = [...byPos[pos]].sort(
-      (a, b) => (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0)
-    );
+  // Sort each position by finalScore descending
+  for (const pos of Object.keys(byPos)) {
+    byPos[pos].sort((a, b) => b._finalScore - a._finalScore);
   }
 
-  const pt = sortedByPos['PT'].slice(0, 1);
+  const pt = byPos['PT'].slice(0, 1);
 
-  // Try formations, pick the one maximising the average advanced titularity of the 11
   const formations: [number, number, number, string][] = [
     [4, 3, 3, '4-3-3'],
     [4, 4, 2, '4-4-2'],
@@ -134,23 +136,21 @@ function selectEleven(
     [5, 2, 3, '5-2-3'],
   ];
 
-  let bestEleven: Player[] = [];
+  let bestEleven: ScoredPlayer[] = [];
   let bestFormation = '4-3-3';
   let bestScore = -1;
 
   for (const [nDf, nMc, nDl, fStr] of formations) {
-    const df = sortedByPos['DF'].slice(0, nDf);
-    const mc = sortedByPos['MC'].slice(0, nMc);
-    const dl = sortedByPos['DL'].slice(0, nDl);
+    const df = byPos['DF'].slice(0, nDf);
+    const mc = byPos['MC'].slice(0, nMc);
+    const dl = byPos['DL'].slice(0, nDl);
 
     if (df.length < nDf || mc.length < nMc || dl.length < nDl) continue;
 
-    const eleven = [...pt, ...df, ...mc, ...dl];
+    const eleven = [...pt, ...df, ...mc, ...dl] as ScoredPlayer[];
     if (eleven.length !== 11) continue;
 
-    const avgScore =
-      eleven.reduce((s, p) => s + (scores.get(p.id) ?? 0), 0) / 11;
-
+    const avgScore = eleven.reduce((s, p) => s + p._finalScore, 0) / 11;
     if (avgScore > bestScore) {
       bestScore = avgScore;
       bestEleven = eleven;
@@ -158,19 +158,15 @@ function selectEleven(
     }
   }
 
-  // Confidence = % of selected players with advanced titularity ≥ 75
-  const confidentCount = bestEleven.filter(
-    (p) => (scores.get(p.id) ?? 0) >= 75
-  ).length;
+  // Confidence: % of 11 who appeared in at least 3 of the last 5 games
+  const confident = bestEleven.filter((p) => p._recentAppearances >= 3).length;
   const confidence =
-    bestEleven.length > 0
-      ? Math.round((confidentCount / bestEleven.length) * 100)
-      : 0;
+    bestEleven.length > 0 ? Math.round((confident / bestEleven.length) * 100) : 0;
 
   return { eleven: bestEleven, formation: bestFormation, confidence };
 }
 
-// ─── Route handler ───────────────────────────────────────────────────────────
+// ─── Route handler ────────────────────────────────────────────────────────────
 
 export async function GET() {
   try {
@@ -187,6 +183,7 @@ export async function GET() {
       string,
       {
         fixture: Player['fixture'];
+        rotationWarning: boolean;
         eleven: Array<{
           id: number;
           name: string;
@@ -195,13 +192,14 @@ export async function GET() {
           price: number;
           gamesPlayed: number;
           titularity: number;
+          recencyScore: number;
+          recentAppearances: number;
           advancedScore: number;
           status: string;
           blankStreak: number;
         }>;
         formation: string;
         confidence: number;
-        rotationWarning: boolean;
       }
     > = {};
 
@@ -210,40 +208,35 @@ export async function GET() {
       const maxGames = Math.max(...teamPlayers.map((p) => p.gamesPlayed), 1);
       const teamIsRotating = detectRotationTeam(teamPlayers, maxGames);
 
+      // Build reconstructed scores using last 5 matchday data
+      const scored = buildReconstructedScores(teamPlayers, maxGames);
+
+      // Only select from available (not injured/suspended)
       const available = teamPlayers.filter(
         (p) => p.status !== 'injured' && p.status !== 'suspended'
       );
 
       if (available.length < 11) continue;
 
-      const { eleven, formation, confidence } = selectEleven(
-        available,
-        maxGames,
-        teamIsRotating
-      );
+      const { eleven, formation, confidence } = selectEleven(available, scored);
 
       result[team] = {
         fixture: teamPlayers[0]?.fixture || null,
         rotationWarning: teamIsRotating,
-        eleven: eleven.map((p) => {
-          let blankStreak = 0;
-          for (let i = 0; i < Math.min(3, p.lastFive.length); i++) {
-            if (p.lastFive[i] <= 0) blankStreak++;
-            else break;
-          }
-          return {
-            id: p.id,
-            name: p.name,
-            pos: p.pos,
-            avgPts: p.avgPts,
-            price: p.price,
-            gamesPlayed: p.gamesPlayed,
-            titularity: maxGames > 0 ? Math.round((p.gamesPlayed / maxGames) * 100) : 0,
-            advancedScore: Math.round(advancedTitularity(p, maxGames, teamIsRotating)),
-            status: p.status,
-            blankStreak,
-          };
-        }),
+        eleven: eleven.map((sp) => ({
+          id: sp.id,
+          name: sp.name,
+          pos: sp.pos,
+          avgPts: sp.avgPts,
+          price: sp.price,
+          gamesPlayed: sp.gamesPlayed,
+          titularity: maxGames > 0 ? Math.round((sp.gamesPlayed / maxGames) * 100) : 0,
+          recencyScore: sp._recencyScore,
+          recentAppearances: sp._recentAppearances,
+          advancedScore: sp._advancedScore,
+          status: sp.status,
+          blankStreak: sp._blankStreak,
+        })),
         formation,
         confidence,
       };
@@ -256,4 +249,3 @@ export async function GET() {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
