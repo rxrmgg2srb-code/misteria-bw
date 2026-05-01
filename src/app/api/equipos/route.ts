@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GET as getPlayers } from '../players/route';
 import type { Player } from '@/lib/biwenger';
-import { buildRealStarterMap } from '@/lib/api-football';
+import { buildRealStarterMap, apiDebug } from '@/lib/api-football';
 
 export const dynamic = 'force-dynamic';
 
@@ -303,7 +303,11 @@ export async function GET() {
       round,
       debug: {
         realStarterTeamsFound: realStarterMap.size,
-        realStarterKeys: Array.from(realStarterMap.keys())
+        realStarterKeys: Array.from(realStarterMap.keys()),
+        keyStart: (process.env.APIFOOTBALL_KEY || 'MISSING').substring(0, 4),
+        apiStatus: apiDebug.lastStatus,
+        apiError: apiDebug.lastError,
+        apiUrl: apiDebug.lastUrl
       }
     });
   } catch (error: unknown) {

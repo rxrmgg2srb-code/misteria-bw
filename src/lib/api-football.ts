@@ -21,6 +21,12 @@ function mapPos(pos: string): string {
   return 'MC'; // default
 }
 
+export const apiDebug = {
+  lastStatus: 0,
+  lastUrl: '',
+  lastError: ''
+};
+
 async function apiGet(path: string): Promise<Record<string, unknown>> {
   const KEY  = process.env.APIFOOTBALL_KEY || '';
   // Use the direct api-sports URL to bypass RapidAPI completely
@@ -30,15 +36,24 @@ async function apiGet(path: string): Promise<Record<string, unknown>> {
 
   try {
     const cacheBuster = path.includes('?') ? '&cb=3' : '?cb=3';
-    const res = await fetch(`${BASE}/${path}${cacheBuster}`, {
+    const url = `${BASE}/${path}${cacheBuster}`;
+    apiDebug.lastUrl = url;
+    
+    const res = await fetch(url, {
       headers: {
         'x-apisports-key': KEY,
       },
       next: { revalidate: 604800 }, // Cache 7 days
     });
-    if (!res.ok) return {};
+    
+    apiDebug.lastStatus = res.status;
+    if (!res.ok) {
+        apiDebug.lastError = await res.text();
+        return {};
+    }
     return res.json();
-  } catch {
+  } catch (e: any) {
+    apiDebug.lastError = e.message || 'Fetch failed';
     return {};
   }
 }
