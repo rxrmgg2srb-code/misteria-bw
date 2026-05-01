@@ -301,6 +301,7 @@ export default function EquiposPage() {
                       ⚠️ Este equipo juega en varias competiciones. Posible rotación.
                     </div>
                   )}
+                  {current.fixture && (
                     <div style={{ marginBottom: 14, fontSize: 13, color: '#9ca3af' }}>
                       {current.fixture.isHome ? 'vs' : '@'} {current.fixture.opponent} · D{current.fixture.difficulty}
                     </div>
