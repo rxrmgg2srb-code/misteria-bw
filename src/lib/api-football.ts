@@ -29,7 +29,8 @@ async function apiGet(path: string): Promise<Record<string, unknown>> {
   if (!KEY) return {};
 
   try {
-    const res = await fetch(`${BASE}/${path}`, {
+    const cacheBuster = path.includes('?') ? '&cb=1' : '?cb=1';
+    const res = await fetch(`${BASE}/${path}${cacheBuster}`, {
       headers: {
         'x-apisports-key': KEY,
       },
