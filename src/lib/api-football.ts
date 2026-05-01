@@ -84,7 +84,8 @@ async function getRecentMatchIds(): Promise<string[]> {
     return dB - dA;
   });
 
-  return completed.slice(0, 50).map((e) => String(e.fixture?.id));
+  // Take last 100 matches = ~5 jornadas per team (20 teams)
+  return completed.slice(0, 100).map((e) => String(e.fixture?.id));
 }
 
 /** Extracts starters from a lineup response */
@@ -162,15 +163,14 @@ export async function buildRealStarterMap(): Promise<Map<string, TeamStats>> {
   const eventIds = await getRecentMatchIds();
   const starterMap = new Map<string, TeamStats>();
 
-  // Fetch in chunks of 5 to avoid hitting API-Football 10 requests/second rate limit
+  // Fetch in chunks of 10 to stay within API-Football 10 req/s rate limit
   const results = [];
-  for (let i = 0; i < eventIds.length; i += 5) {
-    const chunk = eventIds.slice(i, i + 5);
+  for (let i = 0; i < eventIds.length; i += 10) {
+    const chunk = eventIds.slice(i, i + 10);
     const chunkResults = await Promise.all(chunk.map((id) => getMatchLineup(id)));
     results.push(...chunkResults);
-    // Add a tiny delay between chunks to respect rate limits
-    if (i + 5 < eventIds.length) {
-      await new Promise(res => setTimeout(res, 500));
+    if (i + 10 < eventIds.length) {
+      await new Promise(res => setTimeout(res, 1100));
     }
   }
 
