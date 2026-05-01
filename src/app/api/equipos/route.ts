@@ -147,7 +147,8 @@ function detectRotationTeam(teamPlayers: Player[], maxGames: number): boolean {
 
 function selectEleven(
   available: Player[],
-  scored: Map<number, ScoredPlayer>
+  scored: Map<number, ScoredPlayer>,
+  preferredFormation?: string
 ): { eleven: ScoredPlayer[]; formation: string; confidence: number } {
   // Group available players by position
   const byPos: Record<string, ScoredPlayer[]> = { PT: [], DF: [], MC: [], DL: [] };
@@ -193,7 +194,13 @@ function selectEleven(
     const eleven = [...pt, ...df, ...mc, ...dl] as ScoredPlayer[];
     if (eleven.length !== 11) continue;
 
-    const avgScore = eleven.reduce((s, p) => s + p._finalScore, 0) / 11;
+    let avgScore = eleven.reduce((s, p) => s + p._finalScore, 0) / 11;
+    
+    // Massive bonus to force the real-life preferred formation
+    if (preferredFormation && fStr === preferredFormation) {
+      avgScore += 1000;
+    }
+
     if (avgScore > bestScore) {
       bestScore = avgScore;
       bestEleven = eleven;
@@ -254,13 +261,37 @@ export async function GET() {
       const maxGames = Math.max(...teamPlayers.map((p) => p.gamesPlayed), 1);
       const teamIsRotating = detectRotationTeam(teamPlayers, maxGames);
 
-      // We attempt to find the real team name in the map (it might be named slightly differently)
-      // but exact match usually works, or we find it if it contains part of the name
+      // We attempt to find the real team name in the map
       let teamStarters: Map<string, number> | undefined = undefined;
-      for (const [realTeamName, starters] of realStarterMap) {
+      let teamFormations: Map<string, number> | undefined = undefined;
+      
+      for (const [realTeamName, teamStats] of realStarterMap) {
         if (normalizeName(realTeamName).includes(normalizeName(team)) || normalizeName(team).includes(normalizeName(realTeamName))) {
-          teamStarters = starters;
+          teamStarters = teamStats.players;
+          teamFormations = teamStats.formations;
           break;
+        }
+      }
+
+      // Translate the API's preferred formation (e.g. "4-2-3-1") to our DF-MC-DL format (e.g. "4-5-1")
+      let preferredFormation: string | undefined = undefined;
+      if (teamFormations && teamFormations.size > 0) {
+        let maxCount = -1;
+        let bestRawFormation = '';
+        for (const [form, count] of teamFormations) {
+           if (count > maxCount) {
+             maxCount = count;
+             bestRawFormation = form;
+           }
+        }
+        
+        const parts = bestRawFormation.split('-').map(Number);
+        if (parts.length === 3) {
+           preferredFormation = `${parts[0]}-${parts[1]}-${parts[2]}`;
+        } else if (parts.length === 4) {
+           preferredFormation = `${parts[0]}-${parts[1] + parts[2]}-${parts[3]}`;
+        } else if (parts.length === 5) {
+           preferredFormation = `${parts[0]}-${parts[1] + parts[2] + parts[3]}-${parts[4]}`;
         }
       }
 
@@ -274,7 +305,7 @@ export async function GET() {
 
       if (available.length < 11) continue;
 
-      const { eleven, formation, confidence } = selectEleven(available, scored);
+      const { eleven, formation, confidence } = selectEleven(available, scored, preferredFormation);
 
       result[team] = {
         fixture: teamPlayers[0]?.fixture || null,

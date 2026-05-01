@@ -141,9 +141,14 @@ async function getMatchLineup(eventId: string): Promise<{
   };
 }
 
-export async function buildRealStarterMap(): Promise<Map<string, Map<string, number>>> {
+export type TeamStats = {
+  players: Map<string, number>;
+  formations: Map<string, number>;
+};
+
+export async function buildRealStarterMap(): Promise<Map<string, TeamStats>> {
   const eventIds = await getRecentMatchIds();
-  const starterMap = new Map<string, Map<string, number>>();
+  const starterMap = new Map<string, TeamStats>();
 
   // Fetch in chunks of 5 to avoid hitting API-Football 10 requests/second rate limit
   const results = [];
@@ -164,13 +169,18 @@ export async function buildRealStarterMap(): Promise<Map<string, Map<string, num
       if (!side.teamName) continue;
 
       if (!starterMap.has(side.teamName)) {
-        starterMap.set(side.teamName, new Map());
+        starterMap.set(side.teamName, { players: new Map(), formations: new Map() });
       }
-      const playerMap = starterMap.get(side.teamName)!;
+      const teamStats = starterMap.get(side.teamName)!;
 
       for (const player of side.starters) {
-        const current = playerMap.get(player.name) || 0;
-        playerMap.set(player.name, current + 1);
+        const current = teamStats.players.get(player.name) || 0;
+        teamStats.players.set(player.name, current + 1);
+      }
+      
+      if (side.formation) {
+        const currentForm = teamStats.formations.get(side.formation) || 0;
+        teamStats.formations.set(side.formation, currentForm + 1);
       }
     }
   }
