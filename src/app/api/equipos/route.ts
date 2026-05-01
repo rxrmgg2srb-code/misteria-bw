@@ -3,6 +3,8 @@ import { GET as getPlayers } from '../players/route';
 import type { Player } from '@/lib/biwenger';
 import { buildRealStarterMap } from '@/lib/api-football';
 
+export const dynamic = 'force-dynamic';
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function clamp(v: number, min: number, max: number) {
