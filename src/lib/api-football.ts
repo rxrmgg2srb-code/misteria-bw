@@ -23,17 +23,15 @@ function mapPos(pos: string): string {
 
 async function apiGet(path: string): Promise<Record<string, unknown>> {
   const KEY  = process.env.APIFOOTBALL_KEY || '';
-  // Force the official API-Football host
-  const HOST = 'api-football-v1.p.rapidapi.com';
-  const BASE = 'https://api-football-v1.p.rapidapi.com/v3';
+  // Use the direct api-sports URL to bypass RapidAPI completely
+  const BASE = 'https://v3.football.api-sports.io';
 
   if (!KEY) return {};
 
   try {
     const res = await fetch(`${BASE}/${path}`, {
       headers: {
-        'x-rapidapi-key': KEY,
-        'x-rapidapi-host': HOST,
+        'x-apisports-key': KEY,
       },
       next: { revalidate: 604800 }, // Cache 7 days
     });
