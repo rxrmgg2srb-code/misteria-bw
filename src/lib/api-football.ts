@@ -47,18 +47,18 @@ async function apiGet(path: string): Promise<Record<string, unknown>> {
 /** Get all matches for La Liga — returns the completed recent ones */
 async function getRecentMatchIds(): Promise<string[]> {
   const LALIGA_ID = process.env.APIFOOTBALL_LALIGA_ID || '87';
-  const data = await apiGet(`football-get-all-matches-events-by-league-id?leagueid=${LALIGA_ID}`);
+  const data = await apiGet(`football-get-all-matches-by-league?leagueid=${LALIGA_ID}`);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const events: any[] = (data as any)?.response || (data as any)?.events || [];
+  const events: any[] = (data as any)?.response?.matches || (data as any)?.matches || [];
 
   const completed = events.filter((e) => {
-    const status = (e.status || e.eventStatus || '').toLowerCase();
-    return status === 'finished' || status === 'ft' || status === 'aet' || status === 'pen';
+    const s = e.status || e.eventStatus || {};
+    return s.finished === true || (s.reason && s.reason.short === 'FT');
   });
 
   completed.sort((a, b) => {
-    const dA = new Date(a.startTimestamp || a.date || 0).getTime();
-    const dB = new Date(b.startTimestamp || b.date || 0).getTime();
+    const dA = new Date(a.status?.utcTime || a.startTimestamp || 0).getTime();
+    const dB = new Date(b.status?.utcTime || b.startTimestamp || 0).getTime();
     return dB - dA;
   });
 
@@ -100,8 +100,8 @@ async function getMatchLineup(eventId: string): Promise<{
   if (!eventId) return null;
 
   const [homeData, awayData] = await Promise.all([
-    apiGet(`football-get-lineup-home-team-by-event-id?eventid=${eventId}`),
-    apiGet(`football-get-lineup-away-team-by-event-id?eventid=${eventId}`),
+    apiGet(`football-get-hometeam-lineup?eventid=${eventId}`),
+    apiGet(`football-get-awayteam-lineup?eventid=${eventId}`),
   ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
