@@ -11,12 +11,13 @@ function clamp(v: number, min: number, max: number) {
 /**
  * ADVANCED TITULARITY SCORE (0–100)
  *
- * Combines 5 reliability signals:
- *  1. Historical titularity  (gamesPlayed / maxGames)
- *  2. Recent titularity      (lastFive presence in last 5 matches)
- *  3. Recent blank streak    (-30 pts per consecutive 0 in last 3)
- *  4. Doubtful penalty       (-20 pts if status === 'doubtful')
- *  5. Rotation team discount (light penalty when team has extra competition load)
+ * Combines 6 reliability signals:
+ *  1. Historical titularity     (gamesPlayed / maxGames)
+ *  2. Recent titularity L5      (appearances in last 5 matches)
+ *  3. Recent titularity L3      (appearances in last 3 — heavily weighted)
+ *  4. Total recent blank penalty (total 0s in last 5, not just consecutive)
+ *  5. Consecutive blank streak  (extra hit for consecutive 0s at start)
+ *  6. Doubtful / rotation discounts
  */
 function advancedTitularity(
   player: Player,
@@ -26,33 +27,47 @@ function advancedTitularity(
   // ── 1. Historical titularity (0–100)
   const historical = maxGames > 0 ? (player.gamesPlayed / maxGames) * 100 : 0;
 
-  // ── 2. Recent titularity: how many of the last 5 did the player appear?
-  //    Biwenger returns 0 for "didn't play" and >0 for "played"
+  // ── 2. Recent titularity last 5
   const last5 = player.lastFive.slice(0, 5);
-  const recentAppearances = last5.filter((v) => v > 0).length;
-  const recentTitularity = last5.length > 0 ? (recentAppearances / last5.length) * 100 : historical;
+  const appearances5 = last5.filter((v) => v > 0).length;
+  const recentTit5 = last5.length > 0 ? (appearances5 / last5.length) * 100 : historical;
 
-  // ── 3. Consecutive blank (rosco) streak in last 3
-  let recentBlankStreak = 0;
+  // ── 3. Recent titularity last 3 (more recent = more reliable signal)
+  const last3 = player.lastFive.slice(0, 3);
+  const appearances3 = last3.filter((v) => v > 0).length;
+  const recentTit3 = last3.length > 0 ? (appearances3 / last3.length) * 100 : recentTit5;
+
+  // ── 4. Total recent blanks penalty (catches players like Eyong who play
+  //    occasionally but are mostly reserve — even if blanks are not consecutive)
+  const totalBlanks5 = last5.filter((v) => v <= 0).length;
+  // Scale: 0 blanks → 0 penalty, 3+ blanks → 45+ penalty (big hit)
+  const totalBlankPenalty = totalBlanks5 * 15; // −15 pts per blank in last 5
+
+  // ── 5. Consecutive blank streak penalty (extra hit on top of #4)
+  let consecutiveBlanks = 0;
   for (let i = 0; i < Math.min(3, player.lastFive.length); i++) {
-    if (player.lastFive[i] <= 0) recentBlankStreak++;
+    if (player.lastFive[i] <= 0) consecutiveBlanks++;
     else break;
   }
-  const blankPenalty = recentBlankStreak * 22; // −22 pts per consecutive 0
+  const consecutivePenalty = consecutiveBlanks * 18; // −18 additional per consecutive
 
-  // ── 4. Doubtful penalty
+  // ── 6. Status and team discount
   const doubtfulPenalty = player.status === 'doubtful' ? 22 : 0;
-
-  // ── 5. Rotation team discount (mild −10 for non-key players)
   const rotationPenalty = teamIsRotating && historical < 80 ? 10 : 0;
 
-  // ── Weighted blend: recent form (60%) + historical (40%)
-  const blended = recentTitularity * 0.6 + historical * 0.4;
+  // ── Weighted blend: last3 (50%) + last5 (25%) + historical (25%)
+  // Heavy recency bias to detect players who have lost their spot
+  const blended = recentTit3 * 0.50 + recentTit5 * 0.25 + historical * 0.25;
 
-  // ── Context from player.context if available
-  const contextBoost = (player.context?.estimatedStartConfidence ?? 0) * 10;
+  // ── Context boost from player-context model
+  const contextBoost = (player.context?.estimatedStartConfidence ?? 0) * 8;
 
-  const raw = blended + contextBoost - blankPenalty - doubtfulPenalty - rotationPenalty;
+  const raw = blended + contextBoost
+    - totalBlankPenalty
+    - consecutivePenalty
+    - doubtfulPenalty
+    - rotationPenalty;
+
   return clamp(raw, 0, 100);
 }
 
