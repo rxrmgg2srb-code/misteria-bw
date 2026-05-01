@@ -99,7 +99,7 @@ async function getMatchLineup(eventId: string): Promise<{
 
   const data = await apiGet(`fixtures/lineups?fixture=${eventId}`);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const response: any[] = data?.response || [];
+  const response: any[] = (data as any)?.response || [];
 
   if (response.length !== 2) return null; // Needs both teams
 
