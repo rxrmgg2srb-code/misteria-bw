@@ -11,6 +11,28 @@ function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v));
 }
 
+// ─── Name alias map (Biwenger name → API-Football name) ────────────────────
+// Add entries here when the AI misidentifies players due to name differences
+const NAME_ALIASES: Record<string, string[]> = {
+  // Athletic Club
+  'nico williams':      ['nicolas williams', 'n. williams'],
+  'guruzeta':           ['gorka guruzeta', 'guruzeta'],
+  'yuri':               ['yuri berchiche', 'yuri'],
+  'unai simon':         ['unai simon'],
+  'lekue':              ['oier lekue'],
+  'jauregizar':         ['andoni gorosabel', 'jauregizar'],
+  // Real Madrid
+  'vinicius':           ['vinicius junior', 'vinicius jr'],
+  'valverde':           ['fede valverde', 'federico valverde'],
+  'tchouameni':         ['aurelien tchouameni'],
+  // Barça
+  'yamal':              ['lamine yamal'],
+  'lewandowski':        ['robert lewandowski'],
+  // Generic
+  'de paul':            ['rodrigo de paul'],
+  'de jong':            ['frenkie de jong'],
+};
+
 function normalizeName(n: string) {
   return n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
@@ -19,21 +41,31 @@ function getRealStarterCount(playerName: string, teamStarters?: Map<string, numb
   if (!teamStarters) return null;
   const target = normalizeName(playerName);
   const targetParts = target.split(' ');
+  
+  // Resolve alias: check if target name has known API equivalents
+  const aliasVariants = NAME_ALIASES[target] || [];
 
   for (const [realName, count] of teamStarters) {
     const real = normalizeName(realName);
+    
+    // 1. Exact match
     if (real === target) return count;
+    
+    // 2. Alias match
+    if (aliasVariants.some(alias => real === normalizeName(alias) || real.includes(normalizeName(alias)))) return count;
+    
+    // 3. Substring match (both ways)
     if (real.includes(target) || target.includes(real)) return count;
     
-    // Check if main surname matches
+    // 4. Check if ANY word from target appears in real name (surname match)
     const realParts = real.split(' ');
-    if (realParts.length > 0 && targetParts.length > 0) {
-       if (realParts[realParts.length - 1] === targetParts[targetParts.length - 1]) {
-           return count;
-       }
+    for (const part of targetParts) {
+      if (part.length >= 4 && realParts.some(rp => rp === part)) {
+        return count;
+      }
     }
   }
-  // Not found in real starters -> 0 appearances (or they are actually bench players)
+  // Not found in real starters -> 0 appearances
   return 0;
 }
 
