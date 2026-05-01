@@ -298,7 +298,14 @@ export async function GET() {
       };
     }
 
-    return NextResponse.json({ teams: result, round });
+    return NextResponse.json({ 
+      teams: result, 
+      round,
+      debug: {
+        realStarterTeamsFound: realStarterMap.size,
+        realStarterKeys: Array.from(realStarterMap.keys())
+      }
+    });
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : 'Error cargando datos de equipos';
