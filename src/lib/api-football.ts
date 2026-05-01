@@ -8,7 +8,9 @@ export type RealLineupPlayer = {
 export type RealTeamLineup = {
   teamName: string;
   formation: string;
+  coach: string;
   starters: RealLineupPlayer[];
+  subs: RealLineupPlayer[];
 };
 
 // Maps this API's position codes to our system
@@ -124,6 +126,10 @@ async function getMatchLineup(eventId: string): Promise<{
 
   const homeStarters = extractStarters(homeData);
   const awayStarters = extractStarters(awayData);
+  
+  // Extract subs (the array is called "substitutes")
+  const homeSubs = extractStarters({ startXI: homeData?.substitutes || [] });
+  const awaySubs = extractStarters({ startXI: awayData?.substitutes || [] });
 
   if (!homeStarters.length && !awayStarters.length) return null;
 
@@ -131,19 +137,25 @@ async function getMatchLineup(eventId: string): Promise<{
     home: {
       teamName: homeData.team?.name || 'Home',
       formation: homeData.formation || '4-3-3',
+      coach: homeData.coach?.name || 'Desconocido',
       starters: homeStarters,
+      subs: homeSubs,
     },
     away: {
       teamName: awayData.team?.name || 'Away',
       formation: awayData.formation || '4-3-3',
+      coach: awayData.coach?.name || 'Desconocido',
       starters: awayStarters,
+      subs: awaySubs,
     },
   };
 }
 
 export type TeamStats = {
   players: Map<string, number>;
+  subs: Map<string, number>;
   formations: Map<string, number>;
+  coach: string;
 };
 
 export async function buildRealStarterMap(): Promise<Map<string, TeamStats>> {
@@ -169,13 +181,20 @@ export async function buildRealStarterMap(): Promise<Map<string, TeamStats>> {
       if (!side.teamName) continue;
 
       if (!starterMap.has(side.teamName)) {
-        starterMap.set(side.teamName, { players: new Map(), formations: new Map() });
+        starterMap.set(side.teamName, { players: new Map(), subs: new Map(), formations: new Map(), coach: side.coach });
       }
       const teamStats = starterMap.get(side.teamName)!;
+      // Update coach to the most recent one (since we process newest first if sorted)
+      teamStats.coach = side.coach;
 
       for (const player of side.starters) {
         const current = teamStats.players.get(player.name) || 0;
         teamStats.players.set(player.name, current + 1);
+      }
+      
+      for (const player of side.subs) {
+        const current = teamStats.subs.get(player.name) || 0;
+        teamStats.subs.set(player.name, current + 1);
       }
       
       if (side.formation) {

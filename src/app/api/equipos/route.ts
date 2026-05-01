@@ -249,6 +249,8 @@ export async function GET() {
           blankStreak: number;
         }>;
         formation: string;
+        realFormation: string;
+        coach: string;
         confidence: number;
       }
     > = {};
@@ -261,20 +263,24 @@ export async function GET() {
       const maxGames = Math.max(...teamPlayers.map((p) => p.gamesPlayed), 1);
       const teamIsRotating = detectRotationTeam(teamPlayers, maxGames);
 
-      // We attempt to find the real team name in the map
       let teamStarters: Map<string, number> | undefined = undefined;
       let teamFormations: Map<string, number> | undefined = undefined;
+      let teamSubs: Map<string, number> | undefined = undefined;
+      let teamCoach = 'Desconocido';
       
       for (const [realTeamName, teamStats] of realStarterMap) {
         if (normalizeName(realTeamName).includes(normalizeName(team)) || normalizeName(team).includes(normalizeName(realTeamName))) {
           teamStarters = teamStats.players;
           teamFormations = teamStats.formations;
+          teamSubs = teamStats.subs;
+          teamCoach = teamStats.coach;
           break;
         }
       }
 
       // Translate the API's preferred formation (e.g. "4-2-3-1") to our DF-MC-DL format (e.g. "4-5-1")
       let preferredFormation: string | undefined = undefined;
+      let rawFormation = 'Desconocida';
       if (teamFormations && teamFormations.size > 0) {
         let maxCount = -1;
         let bestRawFormation = '';
@@ -284,6 +290,8 @@ export async function GET() {
              bestRawFormation = form;
            }
         }
+        
+        rawFormation = bestRawFormation;
         
         const parts = bestRawFormation.split('-').map(Number);
         if (parts.length === 3) {
@@ -310,21 +318,35 @@ export async function GET() {
       result[team] = {
         fixture: teamPlayers[0]?.fixture || null,
         rotationWarning: teamIsRotating,
-        eleven: eleven.map((sp) => ({
-          id: sp.id,
-          name: sp.name,
-          pos: sp.pos,
-          avgPts: sp.avgPts,
-          price: sp.price,
-          gamesPlayed: sp.gamesPlayed,
-          titularity: maxGames > 0 ? Math.round((sp.gamesPlayed / maxGames) * 100) : 0,
-          recencyScore: sp._recencyScore,
-          recentAppearances: sp._recentAppearances,
-          advancedScore: sp._advancedScore,
-          status: sp.status,
-          blankStreak: sp._blankStreak,
-        })),
+        eleven: eleven.map((sp) => {
+          let subCount = 0;
+          if (teamSubs) {
+            const matchName = normalizeName(sp.name);
+            for (const [realName, count] of teamSubs) {
+               if (realName === matchName || realName.includes(matchName) || matchName.includes(realName)) {
+                 subCount = count;
+               }
+            }
+          }
+          return {
+            id: sp.id,
+            name: sp.name,
+            pos: sp.pos,
+            avgPts: sp.avgPts,
+            price: sp.price,
+            gamesPlayed: sp.gamesPlayed,
+            titularity: maxGames > 0 ? Math.round((sp.gamesPlayed / maxGames) * 100) : 0,
+            recencyScore: sp._recencyScore,
+            recentAppearances: sp._recentAppearances,
+            subAppearances: subCount,
+            advancedScore: sp._advancedScore,
+            status: sp.status,
+            blankStreak: sp._blankStreak,
+          };
+        }),
         formation,
+        realFormation: rawFormation,
+        coach: teamCoach,
         confidence,
       };
     }

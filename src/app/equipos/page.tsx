@@ -63,12 +63,15 @@ type PlayerSlot = {
   advancedScore: number;
   status: string;
   blankStreak: number;
+  subAppearances?: number;
 };
 
 type TeamData = {
   fixture: { opponent: string; isHome: boolean; difficulty: number } | null;
   eleven: PlayerSlot[];
   formation: string;
+  realFormation?: string;
+  coach?: string;
   confidence: number;
   rotationWarning: boolean;
 };
@@ -281,7 +284,10 @@ export default function EquiposPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                     <div style={{ width: 10, height: 10, borderRadius: '50%', background: currentMeta.bg, boxShadow: `0 0 10px ${currentMeta.bg}` }} />
                     <h2 style={{ margin: 0, fontSize: 20, fontWeight: 900 }}>{selectedTeam}</h2>
-                    <span style={{ fontSize: 13, color: '#6b7280' }}>{current.formation}</span>
+                    <span style={{ fontSize: 13, color: '#6b7280', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span style={{ fontWeight: 800 }}>Míster: {current.coach || 'Desconocido'}</span>
+                      <span>Esquema base: {current.realFormation || current.formation}</span>
+                    </span>
                     <span style={{
                       marginLeft: 'auto',
                       padding: '4px 10px',
@@ -356,6 +362,9 @@ export default function EquiposPage() {
                             fontWeight: 800,
                             fontSize: 15
                           }}>{p.recentAppearances}/5 últimas</div>
+                          {p.subAppearances && p.subAppearances > 0 ? (
+                            <div style={{ color: '#60a5fa', fontSize: 11, fontWeight: 700 }}>{p.subAppearances} suplencias</div>
+                          ) : null}
                           <div style={{ color: '#6b7280', fontSize: 11 }}>{p.titularity}% temporada</div>
                         </div>
                       </div>
