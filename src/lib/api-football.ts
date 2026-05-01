@@ -29,7 +29,7 @@ async function apiGet(path: string): Promise<Record<string, unknown>> {
   if (!KEY) return {};
 
   try {
-    const cacheBuster = path.includes('?') ? '&cb=2' : '?cb=2';
+    const cacheBuster = path.includes('?') ? '&cb=3' : '?cb=3';
     const res = await fetch(`${BASE}/${path}${cacheBuster}`, {
       headers: {
         'x-apisports-key': KEY,
@@ -130,7 +130,17 @@ export async function buildRealStarterMap(): Promise<Map<string, Map<string, num
   const eventIds = await getRecentMatchIds();
   const starterMap = new Map<string, Map<string, number>>();
 
-  const results = await Promise.all(eventIds.map((id) => getMatchLineup(id)));
+  // Fetch in chunks of 5 to avoid hitting API-Football 10 requests/second rate limit
+  const results = [];
+  for (let i = 0; i < eventIds.length; i += 5) {
+    const chunk = eventIds.slice(i, i + 5);
+    const chunkResults = await Promise.all(chunk.map((id) => getMatchLineup(id)));
+    results.push(...chunkResults);
+    // Add a tiny delay between chunks to respect rate limits
+    if (i + 5 < eventIds.length) {
+      await new Promise(res => setTimeout(res, 500));
+    }
+  }
 
   for (const result of results) {
     if (!result) continue;
