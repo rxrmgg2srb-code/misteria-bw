@@ -13,9 +13,14 @@ export async function GET() {
     const starterMap = await buildRealStarterMap();
 
     // Convert Map to plain object for JSON
-    const result: Record<string, Record<string, number>> = {};
-    for (const [team, players] of starterMap) {
-      result[team] = Object.fromEntries(players);
+    const result: Record<string, any> = {};
+    for (const [team, teamStats] of starterMap) {
+      result[team] = {
+        players: Object.fromEntries(teamStats.players),
+        subs: Object.fromEntries(teamStats.subs),
+        formations: Object.fromEntries(teamStats.formations),
+        coach: teamStats.coach
+      };
     }
 
     return NextResponse.json({
