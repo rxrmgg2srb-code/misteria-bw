@@ -110,8 +110,8 @@ function extractStarters(teamData: any): RealLineupPlayer[] {
 
 /** Fetch lineup for one match (home + away) */
 async function getMatchLineup(eventId: string): Promise<{
-  home: { teamName: string; formation: string; starters: RealLineupPlayer[] };
-  away: { teamName: string; formation: string; starters: RealLineupPlayer[] };
+  home: RealTeamLineup;
+  away: RealTeamLineup;
 } | null> {
   if (!eventId) return null;
 
