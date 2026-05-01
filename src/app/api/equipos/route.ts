@@ -334,6 +334,7 @@ export async function GET() {
         realFormation: string;
         coach: string;
         confidence: number;
+        _debugAllPlayers?: any[];
       }
     > = {};
 
