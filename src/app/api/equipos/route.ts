@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GET as getPlayers } from '../players/route';
 import type { Player } from '@/lib/biwenger';
-import { buildRealStarterMap, apiDebug } from '@/lib/api-football';
+import { buildRealStarterMap, apiDebug, type TeamStats } from '@/lib/api-football';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,9 +81,12 @@ function getRealStarterCount(playerName: string, teamStarters?: Map<string, numb
  */
 
 type ScoredPlayer = Player & {
-  _recentAppearances: number;   // 0–5: how many of last 5 rounds they appeared
+  _recentAppearances: number;   // starts in the API sample
+  _starterRate: number;          // 0-100: starts/totalGames
+  _subAppearances: number;       // sub appearances in sample
+  _squadPresence: boolean;       // was seen at all (starter or sub) in the sample
   _recencyScore: number;         // 0–100: weighted recent titularity
-  _advancedScore: number;        // 0–100: backup signal (form, status, etc.)
+  _advancedScore: number;        // 0–100: combined signal
   _finalScore: number;           // composite
   _blankStreak: number;
 };
@@ -94,26 +97,66 @@ const ROUND_WEIGHTS = [3, 2.5, 2, 1.5, 1]; // sum = 10
 function buildReconstructedScores(
   teamPlayers: Player[],
   maxGames: number,
-  realStarters?: Map<string, number>
+  teamStats?: TeamStats
 ): Map<number, ScoredPlayer> {
   const result = new Map<number, ScoredPlayer>();
   const maxRounds = 5;
   const maxWeight = ROUND_WEIGHTS.slice(0, maxRounds).reduce((s, w) => s + w, 0);
 
+  // Count total games this team appeared in the API data
+  let totalTeamGames = 0;
+  if (teamStats) {
+    // The team with the most starts tells us how many games we have data for
+    let maxStarts = 0;
+    for (const count of teamStats.players.values()) {
+      if (count > maxStarts) maxStarts = count;
+    }
+    totalTeamGames = maxStarts || 1;
+  }
+
   for (const p of teamPlayers) {
-    // ── Step 1: Recent appearances (real API data prioritized, fallback to Biwenger lastFive)
+    // ── Step 1: Starter appearances from API
     let recentAppearances = 0;
+    let starterRate = 0;
+    let subCount = 0;
+    let squadPresence = false;
     let recencyScore = 0;
-    
-    const realCount = getRealStarterCount(p.name, realStarters);
-    
-    if (realCount !== null) {
-      // We have real data: Cap at 5
-      recentAppearances = clamp(realCount, 0, 5);
-      // Give full score if 4 or 5 appearances, scale down otherwise
-      recencyScore = (recentAppearances / 5) * 100;
+
+    if (teamStats) {
+      const realStartCount = getRealStarterCount(p.name, teamStats.players);
+      const realSubCount = getRealStarterCount(p.name, teamStats.subs);
+
+      if (realStartCount !== null && realStartCount > 0) {
+        recentAppearances = realStartCount;
+        starterRate = Math.min((realStartCount / totalTeamGames) * 100, 100);
+        squadPresence = true;
+      }
+      if (realSubCount !== null && realSubCount > 0) {
+        subCount = realSubCount;
+        squadPresence = true;
+      }
+
+      if (squadPresence) {
+        // Starter rate is the primary signal
+        recencyScore = starterRate;
+        // Subs count as 30% of a start (they participate but aren't relied upon)
+        recencyScore += (subCount / totalTeamGames) * 30;
+        recencyScore = clamp(recencyScore, 0, 100);
+      } else if (teamStats.players.size > 0) {
+        // Player not seen in any game - strong signal they are fringe/injured
+        recencyScore = 0;
+      } else {
+        // No API data at all - fallback to Biwenger
+        const roundsPlayed: number[] = [];
+        for (let i = 0; i < Math.min(maxRounds, p.lastFive.length); i++) {
+          if (p.lastFive[i] > 0) roundsPlayed.push(i);
+        }
+        recentAppearances = roundsPlayed.length;
+        const weightedSum = roundsPlayed.reduce((sum, i) => sum + (ROUND_WEIGHTS[i] ?? 0), 0);
+        recencyScore = maxWeight > 0 ? (weightedSum / maxWeight) * 100 : 0;
+      }
     } else {
-      // Fallback: use Biwenger lastFive > 0
+      // Fallback: use Biwenger lastFive
       const roundsPlayed: number[] = [];
       for (let i = 0; i < Math.min(maxRounds, p.lastFive.length); i++) {
         if (p.lastFive[i] > 0) roundsPlayed.push(i);
@@ -123,33 +166,36 @@ function buildReconstructedScores(
       recencyScore = maxWeight > 0 ? (weightedSum / maxWeight) * 100 : 0;
     }
 
-    // ── Step 2 is now handled above
-
-    // ── Step 3: Historical titularity as backup signal
+    // ── Historical titularity as backup signal
     const historical = maxGames > 0 ? (p.gamesPlayed / maxGames) * 100 : 0;
 
-    // ── Step 4: Status penalties
+    // ── Status penalties
     const doubtfulPenalty = p.status === 'doubtful' ? 20 : 0;
 
-    // ── Step 5: Consecutive blank streak
+    // ── Consecutive blank streak (from Biwenger lastFive)
     let blankStreak = 0;
     for (let i = 0; i < Math.min(3, p.lastFive.length); i++) {
       if (p.lastFive[i] <= 0) blankStreak++;
       else break;
     }
 
-    // Advanced score combines recency + history - penalties
+    // ── Advanced score: API starter rate (70%) + historical (30%) - penalties
     const advancedScore = clamp(
       recencyScore * 0.70 + historical * 0.30 - doubtfulPenalty,
       0, 100
     );
 
-    // Final score: recency is the dominant signal (80%)
-    const finalScore = recencyScore * 0.80 + advancedScore * 0.20;
+    // ── Final score: recency is king (85%), historical gives a small boost (15%)
+    // Players not seen in ANY game (not even as subs) get an extra penalty
+    const absencePenalty = (teamStats && teamStats.players.size > 0 && !squadPresence) ? 30 : 0;
+    const finalScore = clamp(recencyScore * 0.85 + advancedScore * 0.15 - absencePenalty, 0, 100);
 
     result.set(p.id, {
       ...p,
       _recentAppearances: recentAppearances,
+      _starterRate: Math.round(starterRate),
+      _subAppearances: subCount,
+      _squadPresence: squadPresence,
       _recencyScore: Math.round(recencyScore),
       _advancedScore: Math.round(advancedScore),
       _finalScore: Math.round(finalScore),
@@ -243,8 +289,8 @@ function selectEleven(
     }
   }
 
-  // Confidence: % of 11 who appeared in at least 3 of the last 5 games
-  const confident = bestEleven.filter((p) => p._recentAppearances >= 3).length;
+  // Confidence: % of 11 who have a real starter rate >= 50% in our API sample
+  const confident = bestEleven.filter((p) => p._starterRate >= 50 || p._recentAppearances >= 3).length;
   const confidence =
     bestEleven.length > 0 ? Math.round((confident / bestEleven.length) * 100) : 0;
 
@@ -298,48 +344,45 @@ export async function GET() {
       const maxGames = Math.max(...teamPlayers.map((p) => p.gamesPlayed), 1);
       const teamIsRotating = detectRotationTeam(teamPlayers, maxGames);
 
-      let teamStarters: Map<string, number> | undefined = undefined;
-      let teamFormations: Map<string, number> | undefined = undefined;
-      let teamSubs: Map<string, number> | undefined = undefined;
+      let rawFormation = 'Desconocida';
       let teamCoach = 'Desconocido';
       
-      for (const [realTeamName, teamStats] of realStarterMap) {
+      // Find the full teamStats object for this team
+      let foundTeamStats2: TeamStats | undefined = undefined;
+      for (const [realTeamName, ts] of realStarterMap) {
         if (normalizeName(realTeamName).includes(normalizeName(team)) || normalizeName(team).includes(normalizeName(realTeamName))) {
-          teamStarters = teamStats.players;
-          teamFormations = teamStats.formations;
-          teamSubs = teamStats.subs;
-          teamCoach = teamStats.coach;
+          foundTeamStats2 = ts;
+          teamCoach = ts.coach;
           break;
         }
       }
 
-      // Translate the API's preferred formation (e.g. "4-2-3-1") to our DF-MC-DL format (e.g. "4-5-1")
+      // Translate preferred formation from API data
       let preferredFormation: string | undefined = undefined;
-      let rawFormation = 'Desconocida';
-      if (teamFormations && teamFormations.size > 0) {
+      if (foundTeamStats2 && foundTeamStats2.formations.size > 0) {
         let maxCount = -1;
         let bestRawFormation = '';
-        for (const [form, count] of teamFormations) {
-           if (count > maxCount) {
-             maxCount = count;
-             bestRawFormation = form;
-           }
+        for (const [form, count] of foundTeamStats2.formations) {
+          if (count > maxCount) { maxCount = count; bestRawFormation = form; }
         }
-        
         rawFormation = bestRawFormation;
-        
         const parts = bestRawFormation.split('-').map(Number);
-        if (parts.length === 3) {
-           preferredFormation = `${parts[0]}-${parts[1]}-${parts[2]}`;
-        } else if (parts.length === 4) {
-           preferredFormation = `${parts[0]}-${parts[1] + parts[2]}-${parts[3]}`;
-        } else if (parts.length === 5) {
-           preferredFormation = `${parts[0]}-${parts[1] + parts[2] + parts[3]}-${parts[4]}`;
+        if (parts.length === 3) preferredFormation = `${parts[0]}-${parts[1]}-${parts[2]}`;
+        else if (parts.length === 4) preferredFormation = `${parts[0]}-${parts[1] + parts[2]}-${parts[3]}`;
+        else if (parts.length === 5) preferredFormation = `${parts[0]}-${parts[1] + parts[2] + parts[3]}-${parts[4]}`;
+      }
+
+      // Find the full teamStats object for this team
+      let foundTeamStats: TeamStats | undefined = undefined;
+      for (const [realTeamName, ts] of realStarterMap) {
+        if (normalizeName(realTeamName).includes(normalizeName(team)) || normalizeName(team).includes(normalizeName(realTeamName))) {
+          foundTeamStats = ts;
+          break;
         }
       }
 
-      // Build reconstructed scores using real data when available
-      const scored = buildReconstructedScores(teamPlayers, maxGames, teamStarters);
+      // Build reconstructed scores using full API data (starters + subs + formations)
+      const scored = buildReconstructedScores(teamPlayers, maxGames, foundTeamStats);
 
       // Only select from available (not injured/suspended)
       const available = teamPlayers.filter(
@@ -353,17 +396,7 @@ export async function GET() {
       result[team] = {
         fixture: teamPlayers[0]?.fixture || null,
         rotationWarning: teamIsRotating,
-        eleven: eleven.map((sp) => {
-          let subCount = 0;
-          if (teamSubs) {
-            const matchName = normalizeName(sp.name);
-            for (const [realName, count] of teamSubs) {
-               if (realName === matchName || realName.includes(matchName) || matchName.includes(realName)) {
-                 subCount = count;
-               }
-            }
-          }
-          return {
+      eleven: eleven.map((sp) => ({
             id: sp.id,
             name: sp.name,
             pos: sp.pos,
@@ -372,13 +405,14 @@ export async function GET() {
             gamesPlayed: sp.gamesPlayed,
             titularity: maxGames > 0 ? Math.round((sp.gamesPlayed / maxGames) * 100) : 0,
             recencyScore: sp._recencyScore,
+            starterRate: sp._starterRate,
             recentAppearances: sp._recentAppearances,
-            subAppearances: subCount,
+            subAppearances: sp._subAppearances,
+            squadPresence: sp._squadPresence,
             advancedScore: sp._advancedScore,
             status: sp.status,
             blankStreak: sp._blankStreak,
-          };
-        }),
+          })),
         formation,
         realFormation: rawFormation,
         coach: teamCoach,
