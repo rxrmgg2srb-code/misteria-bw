@@ -17,11 +17,16 @@ function clamp(v: number, min: number, max: number) {
 const NAME_ALIASES: Record<string, string[]> = {
   // Athletic Club
   'nico williams':      ['nicolas williams', 'n. williams'],
+  'inaki williams':     ['inaki williams', 'i. williams'],
   'guruzeta':           ['gorka guruzeta', 'guruzeta'],
-  'yuri':               ['yuri berchiche', 'yuri'],
-  'unai simon':         ['unai simon'],
-  'lekue':              ['oier lekue'],
-  'jauregizar':         ['andoni gorosabel', 'jauregizar'],
+  'yuri':               ['yuri berchiche', 'yuri', 'berchiche'],
+  'yeray':              ['yeray alvarez', 'yeray', 'y. alvarez', 'alvarez'],
+  'benat prados':       ['benat prados', 'benat', 'b. prados'],
+  'de galarreta':       ['ruiz de galarreta', 'i. ruiz de galarreta', 'galarreta'],
+  'unai simon':         ['unai simon', 'u. simon'],
+  'unai gomez':         ['u. gomez'],
+  'lekue':              ['oier lekue', 'i. lekue'],
+  'jauregizar':         ['m. jauregizar'],
   // Real Madrid
   'vinicius':           ['vinicius junior', 'vinicius jr'],
   'valverde':           ['fede valverde', 'federico valverde'],
