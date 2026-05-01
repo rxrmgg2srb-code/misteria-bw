@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { analyzeSquad } from '@/lib/claude';
 import { GET as getPlayers } from '../players/route';
-import { normalizeStoredPlayer, type Player } from '@/lib/biwenger';
+import { normalizeStoredPlayer } from '@/lib/biwenger';
+import type { Player } from '@/lib/biwenger';
 import { hydratePlayerContext, parseRoundNumber } from '@/lib/player-context';
 import { applySignalsToSquad, buildPlayerSignals, scrapeInjuryNews } from '@/lib/scraper';
 import { getClientIp, normalizePlayerNames, takeRateLimit } from '@/lib/server-guard';

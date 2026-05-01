@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { GET as getPlayers } from '../players/route';
 import type { Player } from '@/lib/biwenger';
-import { buildRealStarterMap, apiDebug, type TeamStats } from '@/lib/api-football';
+import { buildRealStarterMap, apiDebug } from '@/lib/api-football';
+import type { TeamStats } from '@/lib/api-football';
 
 export const dynamic = 'force-dynamic';
 
@@ -417,6 +418,15 @@ export async function GET() {
         realFormation: rawFormation,
         coach: teamCoach,
         confidence,
+        _debugAllPlayers: team === 'Athletic' ? Array.from(scored.values()).map(sp => ({
+          name: sp.name,
+          pos: sp.pos,
+          score: sp._finalScore,
+          recency: sp._recencyScore,
+          starterRate: sp._starterRate,
+          subApp: sp._subAppearances,
+          presence: sp._squadPresence
+        })) : undefined,
       };
     }
 

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { askClaude } from '@/lib/claude';
-import { normalizeStoredPlayer, type Player } from '@/lib/biwenger';
+import { normalizeStoredPlayer } from '@/lib/biwenger';
+import type { Player } from '@/lib/biwenger';
 import {
   applySignalsToSquad,
   buildPlayerSignals,
   consolidateFlags,
   scrapeInjuryNews,
-  type SignalFlag,
 } from '@/lib/scraper';
+import type { SignalFlag } from '@/lib/scraper';
 import { getClientIp, normalizePlayerNames, takeRateLimit } from '@/lib/server-guard';
 
 function mergeAiFlags(

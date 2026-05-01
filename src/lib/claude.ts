@@ -1483,7 +1483,7 @@ function buildFallbackLineup(squad: SquadPlayer[], strategy: AnalysisStrategy = 
       oncePlayers,
       score,
       shape,
-    } satisfies FormationCandidate;
+    } as FormationCandidate;
   }).filter(Boolean) as FormationCandidate[];
 
   const selected =
@@ -1498,7 +1498,7 @@ function buildFallbackLineup(squad: SquadPlayer[], strategy: AnalysisStrategy = 
       ].filter(Boolean).slice(0, 11) as SquadPlayer[],
       score: 0,
       shape: { defs: Math.min(4, defenders.length), mids: Math.min(3, midfielders.length), forwards: Math.min(3, forwards.length) },
-    } satisfies FormationCandidate);
+    } as FormationCandidate);
 
   const oncePlayers = selected.oncePlayers;
   const onceNames = oncePlayers.map((player) => player.name);

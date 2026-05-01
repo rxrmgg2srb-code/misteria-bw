@@ -247,8 +247,7 @@ export function buildPlayerLiveInfo(signal?: {
     sourceCount: Math.max(0, Math.round(Number(signal.sourceCount || 0))),
     freshnessMinutes: Math.max(0, Math.round(Number(signal.freshnessMinutes || 0))),
     checkedAt: typeof signal.checkedAt === 'string' ? signal.checkedAt : '',
-    summary: typeof signal.summary === 'string' ? signal.summary.slice(0, 220) : '',
-  } satisfies PlayerLiveInfo;
+  } as PlayerLiveInfo;
 }
 
 export function hydratePlayerContext(

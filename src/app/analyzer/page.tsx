@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { normalizeStoredPlayer, type Player, type PlayerFlag } from '@/lib/biwenger';
+import { normalizeStoredPlayer } from '@/lib/biwenger';
+import type { Player, PlayerFlag } from '@/lib/biwenger';
 
 const POS_LABEL: Record<string, string> = { PT: 'POR', DF: 'DEF', MC: 'CEN', DL: 'DEL' };
 const POS_COLOR: Record<string, string> = { PT: '#f59e0b', DF: '#60a5fa', MC: '#4ade80', DL: '#f87171' };
