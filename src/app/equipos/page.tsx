@@ -58,7 +58,9 @@ type PlayerSlot = {
   price: number;
   gamesPlayed: number;
   titularity: number;
+  advancedScore: number;
   status: string;
+  blankStreak: number;
 };
 
 type TeamData = {
@@ -66,6 +68,7 @@ type TeamData = {
   eleven: PlayerSlot[];
   formation: string;
   confidence: number;
+  rotationWarning: boolean;
 };
 
 type EquiposData = {
@@ -290,7 +293,12 @@ export default function EquiposPage() {
                       {current.confidence}% fiabilidad
                     </span>
                   </div>
-                  {current.fixture && (
+                  {/* Rotation warning */}
+                  {current.rotationWarning && (
+                    <div style={{ marginBottom: 14, padding: '8px 12px', borderRadius: 8, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', fontSize: 12, color: '#fbbf24' }}>
+                      ⚠️ Este equipo juega en varias competiciones. Posible rotación.
+                    </div>
+                  )}
                     <div style={{ marginBottom: 14, fontSize: 13, color: '#9ca3af' }}>
                       {current.fixture.isHome ? 'vs' : '@'} {current.fixture.opponent} · D{current.fixture.difficulty}
                     </div>
@@ -311,36 +319,43 @@ export default function EquiposPage() {
                     {current.eleven.map((p) => {
                       const titColor = p.titularity >= 75 ? '#4ade80' : p.titularity >= 50 ? '#fbbf24' : '#f87171';
                       return (
-                        <div
-                          key={p.id}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 10,
-                            padding: '10px 14px',
-                            borderRadius: 10,
-                            background: 'rgba(255,255,255,0.04)',
-                            border: '1px solid rgba(255,255,255,0.07)',
-                          }}
-                        >
-                          <span style={{
-                            background: POS_COLOR[p.pos] || '#6b7280',
-                            color: '#fff',
-                            fontSize: 10,
-                            fontWeight: 800,
-                            padding: '2px 6px',
-                            borderRadius: 4,
-                            minWidth: 28,
-                            textAlign: 'center',
-                          }}>
-                            {p.pos}
-                          </span>
-                          <span style={{ fontWeight: 700, fontSize: 14, flex: 1 }}>{p.name}</span>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ color: titColor, fontWeight: 700, fontSize: 13 }}>{p.titularity}%</div>
-                            <div style={{ color: '#6b7280', fontSize: 11 }}>{p.avgPts} pts/j</div>
-                          </div>
+                    <div
+                        key={p.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          padding: '10px 14px',
+                          borderRadius: 10,
+                          background: p.blankStreak >= 2 ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.04)',
+                          border: p.blankStreak >= 2 ? '1px solid rgba(239,68,68,0.2)' : '1px solid rgba(255,255,255,0.07)',
+                        }}
+                      >
+                        <span style={{
+                          background: POS_COLOR[p.pos] || '#6b7280',
+                          color: '#fff',
+                          fontSize: 10,
+                          fontWeight: 800,
+                          padding: '2px 6px',
+                          borderRadius: 4,
+                          minWidth: 28,
+                          textAlign: 'center',
+                        }}>
+                          {p.pos}
+                        </span>
+                        <span style={{ fontWeight: 700, fontSize: 14, flex: 1 }}>
+                          {p.name}
+                          {p.blankStreak >= 2 && <span style={{ marginLeft: 6, fontSize: 11, color: '#f87171' }}>🟥 {p.blankStreak} roscos</span>}
+                        </span>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{
+                            color: p.advancedScore >= 75 ? '#4ade80' : p.advancedScore >= 50 ? '#fbbf24' : '#f87171',
+                            fontWeight: 700,
+                            fontSize: 13
+                          }}>{p.advancedScore}pts IA</div>
+                          <div style={{ color: '#6b7280', fontSize: 11 }}>{p.titularity}% histórico</div>
                         </div>
+                      </div>
                       );
                     })}
                   </div>
