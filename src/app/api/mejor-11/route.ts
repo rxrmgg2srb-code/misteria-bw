@@ -4,7 +4,7 @@ import { analyzeGlobalPlayers } from '@/lib/claude';
 import type { Player } from '@/lib/biwenger';
 import { buildTeamContextMap } from '@/lib/team-context';
 import { hydratePlayerContext } from '@/lib/player-context';
-import { getNextRoundInjuries } from '@/lib/api-football';
+import { getNextRoundInjuries, getCurrentRound, getFixtureIdsByRound, getOddsDifficulty } from '@/lib/api-football';
 import type { PlayerInjury } from '@/lib/api-football';
 
 export const dynamic = 'force-dynamic';
@@ -33,10 +33,14 @@ function checkInjury(player: Player, injuryMap: Map<string, PlayerInjury>): Play
 
 export async function GET() {
   try {
-    // 1. Obtener la lista completa de jugadores (Biwenger) + Lesiones (API-Football)
-    const [playersRes, injuryMap] = await Promise.all([
+    // 1. Obtener la lista completa de jugadores (Biwenger) + Lesiones (API-Football) + Cuotas (Bet365)
+    const currentRound = await getCurrentRound();
+    const fixtureIds = await getFixtureIdsByRound(currentRound);
+    
+    const [playersRes, injuryMap, oddsMap] = await Promise.all([
       getPlayers(),
-      getNextRoundInjuries()
+      getNextRoundInjuries(),
+      getOddsDifficulty(fixtureIds)
     ]);
     
     if (!playersRes.ok) {
@@ -82,7 +86,28 @@ export async function GET() {
         else if (apiInjury.type === 'Questionable' && player.status === 'fit') updatedStatus = 'doubtful';
       }
 
-      return hydratePlayerContext({ ...player, status: updatedStatus }, {
+      // Update difficulty from Bet365 odds
+      let finalDifficulty = player.fixture?.difficulty;
+      if (player.fixture && oddsMap.size > 0) {
+        const t1 = normName(player.fixture.homeTeam || '');
+        const t2 = normName(player.fixture.awayTeam || '');
+        const normPlayerTeam = normName(player.team);
+        
+        for (const [matchKey, difficultyStats] of oddsMap) {
+          const matchNorm = normName(matchKey);
+          if ((t1 && matchNorm.includes(t1)) || (t2 && matchNorm.includes(t2))) {
+            const isHome = t1 && matchNorm.startsWith(t1);
+            if (normPlayerTeam && t1 && normPlayerTeam.includes(t1)) {
+              finalDifficulty = isHome ? difficultyStats.homeDiff : difficultyStats.awayDiff;
+            } else if (normPlayerTeam && t2 && normPlayerTeam.includes(t2)) {
+              finalDifficulty = isHome ? difficultyStats.awayDiff : difficultyStats.homeDiff;
+            }
+            break;
+          }
+        }
+      }
+      
+      const hydrated = hydratePlayerContext({ ...player, status: updatedStatus }, {
         seasonRound: 35, // o derivar del fixture
         nowMs,
         teamContext: teamContextByName.get(player.team) || {
@@ -97,6 +122,12 @@ export async function GET() {
         },
         signal: undefined,
       });
+
+      if (hydrated.fixture && finalDifficulty !== undefined) {
+        hydrated.fixture.difficulty = finalDifficulty;
+      }
+
+      return hydrated;
     });
     
     // 4. Ejecutar el análisis global usando las 32 dimensiones (Claude Score)
