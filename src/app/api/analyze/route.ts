@@ -5,6 +5,8 @@ import { normalizeStoredPlayer } from '@/lib/biwenger';
 import type { Player } from '@/lib/biwenger';
 import { hydratePlayerContext, parseRoundNumber } from '@/lib/player-context';
 import { applySignalsToSquad, buildPlayerSignals, scrapeInjuryNews } from '@/lib/scraper';
+import { getNextRoundInjuries, getCurrentRound, getFixtureIdsByRound, getOddsDifficulty } from '@/lib/api-football';
+import type { PlayerInjury } from '@/lib/api-football';
 import { getClientIp, normalizePlayerNames, takeRateLimit } from '@/lib/server-guard';
 import { buildTeamContextMap } from '@/lib/team-context';
 
@@ -63,6 +65,26 @@ function buildLiveAlerts(signals: ReturnType<typeof buildPlayerSignals>) {
 }
 
 export async function POST(req: NextRequest) {
+  function normName(n: string) {
+    return n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  }
+
+  function checkInjury(player: Player, injuryMap: Map<string, PlayerInjury>): PlayerInjury | null {
+    const target = normName(player.name);
+    const targetParts = target.split(' ');
+    for (const [injName, inj] of injuryMap) {
+      const real = normName(injName);
+      if (real === target || real.includes(target) || target.includes(real)) return inj;
+      const realParts = real.split(' ');
+      const realLast = realParts[realParts.length - 1];
+      if (realLast.length >= 4 && targetParts.some(p => p === realLast)) return inj;
+      for (const part of targetParts) {
+        if (part.length >= 5 && realParts.some(rp => rp === part)) return inj;
+      }
+    }
+    return null;
+  }
+
   try {
     const ip = getClientIp(req);
     const limit = takeRateLimit(`analyze:${ip}`, 8, 3600_000);
@@ -89,8 +111,17 @@ export async function POST(req: NextRequest) {
     const playerNames = normalizePlayerNames(sanitizedSquad);
     const news = playerNames ? await scrapeInjuryNews(playerNames) : [];
     const signals = playerNames ? buildPlayerSignals(news, playerNames) : {};
-    const enrichedSquad = applySignalsToSquad(sanitizedSquad, signals);
-    const autoRound = deriveRoundFromSquad(enrichedSquad);
+    let enrichedSquad = applySignalsToSquad(sanitizedSquad, signals);
+    
+    // Fetch API-Football data
+    const trueRound = await getCurrentRound();
+    const fixtureIds = await getFixtureIdsByRound(trueRound);
+    const [injuryMap, oddsMap] = await Promise.all([
+      getNextRoundInjuries(),
+      getOddsDifficulty(fixtureIds)
+    ]);
+
+    const autoRound = trueRound || deriveRoundFromSquad(enrichedSquad);
     const seasonRound = parseRoundNumber(autoRound);
     const nowMs = Date.now();
     const uniqueTeams = [...new Set(enrichedSquad.map((player) => player.team).filter(Boolean))];
@@ -120,8 +151,36 @@ export async function POST(req: NextRequest) {
         teamContextByName.set(team.name, snapshot);
       }
     }
-    const hydratedSquad = enrichedSquad.map((player) =>
-      hydratePlayerContext(player, {
+    const hydratedSquad = enrichedSquad.map((player) => {
+      // 1. Inyectar lesiones reales de API-Football
+      const apiInjury = checkInjury(player, injuryMap);
+      let updatedStatus = player.status;
+      if (apiInjury) {
+        if (apiInjury.type === 'Missing Fixture') updatedStatus = 'injured';
+        else if (apiInjury.type === 'Questionable' && player.status === 'fit') updatedStatus = 'doubtful';
+      }
+
+      // 2. Inyectar Dificultad Real de Cuotas (Bet365)
+      let finalDifficulty = player.fixture?.difficulty;
+      if (player.fixture && oddsMap.size > 0) {
+        const t1 = normName(player.fixture.homeTeam || '');
+        const t2 = normName(player.fixture.awayTeam || '');
+        const normPlayerTeam = normName(player.team);
+        for (const [matchKey, difficultyStats] of oddsMap) {
+          const matchNorm = normName(matchKey);
+          if ((t1 && matchNorm.includes(t1)) || (t2 && matchNorm.includes(t2))) {
+            const isHome = t1 && matchNorm.startsWith(t1);
+            if (normPlayerTeam && t1 && normPlayerTeam.includes(t1)) {
+              finalDifficulty = isHome ? difficultyStats.homeDiff : difficultyStats.awayDiff;
+            } else if (normPlayerTeam && t2 && normPlayerTeam.includes(t2)) {
+              finalDifficulty = isHome ? difficultyStats.awayDiff : difficultyStats.homeDiff;
+            }
+            break;
+          }
+        }
+      }
+
+      const hydrated = hydratePlayerContext({ ...player, status: updatedStatus }, {
         seasonRound,
         nowMs,
         teamContext:
@@ -136,8 +195,13 @@ export async function POST(req: NextRequest) {
             schedulePressureNote: player.context?.schedulePressureNote || '',
           },
         signal: signals[player.name],
-      })
-    );
+      });
+
+      if (hydrated.fixture && finalDifficulty !== undefined) {
+        hydrated.fixture.difficulty = finalDifficulty;
+      }
+      return hydrated;
+    });
     const safeContext = {
       jornada: cleanText(context?.jornada, 20) || autoRound,
       autoRound,
