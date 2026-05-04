@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { GET as getPlayers } from '../players/route';
 import type { Player } from '@/lib/biwenger';
-import { buildRealStarterMap, apiDebug } from '@/lib/api-football';
-import type { TeamStats } from '@/lib/api-football';
+import { buildRealStarterMap, getNextRoundInjuries, apiDebug } from '@/lib/api-football';
+import type { TeamStats, PlayerInjury } from '@/lib/api-football';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,7 +103,8 @@ const ROUND_WEIGHTS = [3, 2.5, 2, 1.5, 1]; // sum = 10
 function buildReconstructedScores(
   teamPlayers: Player[],
   maxGames: number,
-  teamStats?: TeamStats
+  teamStats?: TeamStats,
+  injuries?: Map<string, PlayerInjury>
 ): Map<number, ScoredPlayer> {
   const result = new Map<number, ScoredPlayer>();
   const maxRounds = 5;
@@ -175,8 +176,25 @@ function buildReconstructedScores(
     // ── Historical titularity as backup signal
     const historical = maxGames > 0 ? (p.gamesPlayed / maxGames) * 100 : 0;
 
-    // ── Status penalties
-    const doubtfulPenalty = p.status === 'doubtful' ? 20 : 0;
+    // ── Status penalties & Injuries
+    let doubtfulPenalty = p.status === 'doubtful' ? 20 : 0;
+    
+    // Check API-Football injuries
+    let isConfirmedOut = false;
+    if (injuries) {
+      const target = normalizeName(p.name);
+      for (const [injName, injData] of injuries) {
+        const real = normalizeName(injName);
+        if (real === target || real.includes(target) || target.includes(real) || (real.length >= 4 && target.includes(real.split(' ').pop() || ''))) {
+          if (injData.type === 'Missing Fixture') {
+            isConfirmedOut = true;
+          } else if (injData.type === 'Questionable') {
+            doubtfulPenalty = 30; // Stronger penalty for API doubtful
+          }
+          break;
+        }
+      }
+    }
 
     // ── Consecutive blank streak (from Biwenger lastFive)
     let blankStreak = 0;
@@ -194,7 +212,10 @@ function buildReconstructedScores(
     // ── Final score: recency is king (85%), historical gives a small boost (15%)
     // Players not seen in ANY game (not even as subs) get an extra penalty
     const absencePenalty = (teamStats && teamStats.players.size > 0 && !squadPresence) ? 30 : 0;
-    const finalScore = clamp(recencyScore * 0.85 + advancedScore * 0.15 - absencePenalty, 0, 100);
+    let finalScore = clamp(recencyScore * 0.85 + advancedScore * 0.15 - absencePenalty, 0, 100);
+    
+    // Kill score if confirmed out by API
+    if (isConfirmedOut) finalScore = -100;
 
     result.set(p.id, {
       ...p,
@@ -343,8 +364,11 @@ export async function GET() {
       }
     > = {};
 
-    // Parallel fetch: we don't await realStarters inside the loop
-    const realStarterMap = await buildRealStarterMap();
+    // Parallel fetch: real starters and real injuries for the next round
+    const [realStarterMap, injuryMap] = await Promise.all([
+      buildRealStarterMap(50),
+      getNextRoundInjuries()
+    ]);
 
     for (const team of teams) {
       const teamPlayers = allPlayers.filter((p) => p.team === team);
@@ -388,10 +412,11 @@ export async function GET() {
         }
       }
 
-      // Build reconstructed scores using full API data (starters + subs + formations)
-      const scored = buildReconstructedScores(teamPlayers, maxGames, foundTeamStats);
+      // Build reconstructed scores using full API data (starters + subs + formations + injuries)
+      const scored = buildReconstructedScores(teamPlayers, maxGames, foundTeamStats, injuryMap);
 
-      // Only select from available (not injured/suspended)
+      // Only select from available (not injured/suspended in Biwenger)
+      // Note: API injuries have already killed the score of players out, so they won't be selected
       const available = teamPlayers.filter(
         (p) => p.status !== 'injured' && p.status !== 'suspended'
       );
