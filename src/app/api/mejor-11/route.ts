@@ -3,7 +3,7 @@ import { GET as getPlayers } from '../players/route';
 import { analyzeGlobalPlayers } from '@/lib/claude';
 import type { Player } from '@/lib/biwenger';
 import { buildTeamContextMap } from '@/lib/team-context';
-import { hydratePlayerContext, parseRoundNumber } from '@/lib/player-context';
+import { hydratePlayerContext } from '@/lib/player-context';
 import {
   getNextRoundInjuries,
   getCurrentRound,
