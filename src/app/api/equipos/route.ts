@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
 import { GET as getPlayers } from '../players/route';
 import type { Player } from '@/lib/biwenger';
-import { buildRealStarterMap, getNextRoundInjuries, apiDebug } from '@/lib/api-football';
+import {
+  buildRealStarterMap,
+  getNextRoundInjuries,
+  getCurrentRound,
+  getFixtureIdsByRound,
+  getOddsDifficulty,
+  apiDebug,
+} from '@/lib/api-football';
 import type { TeamStats, PlayerInjury } from '@/lib/api-football';
+import { buildTeamContextMap } from '@/lib/team-context';
+import type { TeamContextSnapshot } from '@/lib/team-context';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +21,11 @@ function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v));
 }
 
+function normalizeName(n: string) {
+  return n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
 // ─── Name alias map (Biwenger name → API-Football name) ────────────────────
-// Add entries here when the AI misidentifies players due to name differences
 const NAME_ALIASES: Record<string, string[]> = {
   // Athletic Club
   'nico williams':      ['nicolas williams', 'n. williams'],
@@ -39,31 +51,17 @@ const NAME_ALIASES: Record<string, string[]> = {
   'de jong':            ['frenkie de jong'],
 };
 
-function normalizeName(n: string) {
-  return n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-}
-
 function getRealStarterCount(playerName: string, teamStarters?: Map<string, number>): number | null {
   if (!teamStarters) return null;
   const target = normalizeName(playerName);
   const targetParts = target.split(' ');
-  
-  // Resolve alias: check if target name has known API equivalents
   const aliasVariants = NAME_ALIASES[target] || [];
 
   for (const [realName, count] of teamStarters) {
     const real = normalizeName(realName);
-    
-    // 1. Exact match
     if (real === target) return count;
-    
-    // 2. Alias match
     if (aliasVariants.some(alias => real === normalizeName(alias) || real.includes(normalizeName(alias)))) return count;
-    
-    // 3. Substring match (both ways)
     if (real.includes(target) || target.includes(real)) return count;
-    
-    // 4. Check if ANY word from target appears in real name (surname match)
     const realParts = real.split(' ');
     for (const part of targetParts) {
       if (part.length >= 4 && realParts.some(rp => rp === part)) {
@@ -71,49 +69,58 @@ function getRealStarterCount(playerName: string, teamStarters?: Map<string, numb
       }
     }
   }
-  // Not found in real starters -> 0 appearances
   return 0;
 }
 
-/**
- * RECONSTRUCTED XI APPROACH
- *
- * For each team we rebuild the actual XI from each of the last 5 matchdays:
- *   - lastFive[0] = most recent matchday
- *   - lastFive[i] > 0 → the player was on the pitch that day
- *
- * From those 5 reconstructed XIs we calculate a weighted recency score.
- * More recent matchdays carry more weight.
- */
+/** Check if a player matches an injury record */
+function matchInjury(playerName: string, injuryMap: Map<string, PlayerInjury>): PlayerInjury | null {
+  const target = normalizeName(playerName);
+  const targetParts = target.split(' ');
+
+  for (const [injName, inj] of injuryMap) {
+    const real = normalizeName(injName);
+    if (real === target || real.includes(target) || target.includes(real)) return inj;
+    const realParts = real.split(' ');
+    const realLast = realParts[realParts.length - 1];
+    if (realLast.length >= 4 && targetParts.some(p => p === realLast)) return inj;
+    for (const part of targetParts) {
+      if (part.length >= 5 && realParts.some(rp => rp === part)) return inj;
+    }
+  }
+  return null;
+}
+
+// ─── Types ──────────────────────────────────────────────────────────────────
 
 type ScoredPlayer = Player & {
-  _recentAppearances: number;   // starts in the API sample
-  _starterRate: number;          // 0-100: starts/totalGames
-  _subAppearances: number;       // sub appearances in sample
-  _squadPresence: boolean;       // was seen at all (starter or sub) in the sample
-  _recencyScore: number;         // 0–100: weighted recent titularity
-  _advancedScore: number;        // 0–100: combined signal
-  _finalScore: number;           // composite
+  _recentAppearances: number;
+  _starterRate: number;
+  _subAppearances: number;
+  _squadPresence: boolean;
+  _recencyScore: number;
+  _advancedScore: number;
+  _finalScore: number;
   _blankStreak: number;
+  _injuryAlert: PlayerInjury | null;
 };
 
-/** Weights for each round index: index 0 = most recent */
-const ROUND_WEIGHTS = [3, 2.5, 2, 1.5, 1]; // sum = 10
+// ─── Scoring ────────────────────────────────────────────────────────────────
+
+const ROUND_WEIGHTS = [3, 2.5, 2, 1.5, 1];
 
 function buildReconstructedScores(
   teamPlayers: Player[],
   maxGames: number,
-  teamStats?: TeamStats,
-  injuries?: Map<string, PlayerInjury>
+  teamStats: TeamStats | undefined,
+  injuries: Map<string, PlayerInjury>,
+  schedulePressure: 'alta' | 'media' | 'baja',
 ): Map<number, ScoredPlayer> {
   const result = new Map<number, ScoredPlayer>();
   const maxRounds = 5;
   const maxWeight = ROUND_WEIGHTS.slice(0, maxRounds).reduce((s, w) => s + w, 0);
 
-  // Count total games this team appeared in the API data
   let totalTeamGames = 0;
   if (teamStats) {
-    // The team with the most starts tells us how many games we have data for
     let maxStarts = 0;
     for (const count of teamStats.players.values()) {
       if (count > maxStarts) maxStarts = count;
@@ -122,7 +129,6 @@ function buildReconstructedScores(
   }
 
   for (const p of teamPlayers) {
-    // ── Step 1: Starter appearances from API
     let recentAppearances = 0;
     let starterRate = 0;
     let subCount = 0;
@@ -144,16 +150,12 @@ function buildReconstructedScores(
       }
 
       if (squadPresence) {
-        // Starter rate is the primary signal
         recencyScore = starterRate;
-        // Subs count as 30% of a start (they participate but aren't relied upon)
         recencyScore += (subCount / totalTeamGames) * 30;
         recencyScore = clamp(recencyScore, 0, 100);
       } else if (teamStats.players.size > 0) {
-        // Player not seen in any game - strong signal they are fringe/injured
         recencyScore = 0;
       } else {
-        // No API data at all - fallback to Biwenger
         const roundsPlayed: number[] = [];
         for (let i = 0; i < Math.min(maxRounds, p.lastFive.length); i++) {
           if (p.lastFive[i] > 0) roundsPlayed.push(i);
@@ -163,7 +165,6 @@ function buildReconstructedScores(
         recencyScore = maxWeight > 0 ? (weightedSum / maxWeight) * 100 : 0;
       }
     } else {
-      // Fallback: use Biwenger lastFive
       const roundsPlayed: number[] = [];
       for (let i = 0; i < Math.min(maxRounds, p.lastFive.length); i++) {
         if (p.lastFive[i] > 0) roundsPlayed.push(i);
@@ -173,48 +174,48 @@ function buildReconstructedScores(
       recencyScore = maxWeight > 0 ? (weightedSum / maxWeight) * 100 : 0;
     }
 
-    // ── Historical titularity as backup signal
     const historical = maxGames > 0 ? (p.gamesPlayed / maxGames) * 100 : 0;
 
-    // ── Status penalties & Injuries
-    let doubtfulPenalty = p.status === 'doubtful' ? 20 : 0;
-    
-    // Check API-Football injuries
+    // ── Injuries from API-Football ──
+    const injuryAlert = matchInjury(p.name, injuries);
     let isConfirmedOut = false;
-    if (injuries) {
-      const target = normalizeName(p.name);
-      for (const [injName, injData] of injuries) {
-        const real = normalizeName(injName);
-        if (real === target || real.includes(target) || target.includes(real) || (real.length >= 4 && target.includes(real.split(' ').pop() || ''))) {
-          if (injData.type === 'Missing Fixture') {
-            isConfirmedOut = true;
-          } else if (injData.type === 'Questionable') {
-            doubtfulPenalty = 30; // Stronger penalty for API doubtful
-          }
-          break;
-        }
+    let doubtfulPenalty = p.status === 'doubtful' ? 20 : 0;
+
+    if (injuryAlert) {
+      if (injuryAlert.type === 'Missing Fixture') {
+        isConfirmedOut = true;
+      } else if (injuryAlert.type === 'Questionable') {
+        doubtfulPenalty = Math.max(doubtfulPenalty, 30);
       }
     }
 
-    // ── Consecutive blank streak (from Biwenger lastFive)
+    // ── Schedule pressure: penalize non-essential starters in rotation-prone teams ──
+    let rotationPenalty = 0;
+    if (schedulePressure === 'alta' && squadPresence) {
+      // Players who are regular starters (>70%) in heavy-schedule teams get penalized
+      // because the coach is more likely to rotate them
+      if (starterRate >= 80) rotationPenalty = 8;
+      else if (starterRate >= 60) rotationPenalty = 5;
+      // Subs who play a lot actually BENEFIT from rotation (they might get a start)
+      if (subCount >= 2 && starterRate < 50) rotationPenalty = -10;
+    } else if (schedulePressure === 'media' && starterRate >= 80) {
+      rotationPenalty = 3;
+    }
+
     let blankStreak = 0;
     for (let i = 0; i < Math.min(3, p.lastFive.length); i++) {
       if (p.lastFive[i] <= 0) blankStreak++;
       else break;
     }
 
-    // ── Advanced score: API starter rate (70%) + historical (30%) - penalties
     const advancedScore = clamp(
-      recencyScore * 0.70 + historical * 0.30 - doubtfulPenalty,
+      recencyScore * 0.70 + historical * 0.30 - doubtfulPenalty - rotationPenalty,
       0, 100
     );
 
-    // ── Final score: recency is king (85%), historical gives a small boost (15%)
-    // Players not seen in ANY game (not even as subs) get an extra penalty
     const absencePenalty = (teamStats && teamStats.players.size > 0 && !squadPresence) ? 30 : 0;
     let finalScore = clamp(recencyScore * 0.85 + advancedScore * 0.15 - absencePenalty, 0, 100);
-    
-    // Kill score if confirmed out by API
+
     if (isConfirmedOut) finalScore = -100;
 
     result.set(p.id, {
@@ -227,6 +228,7 @@ function buildReconstructedScores(
       _advancedScore: Math.round(advancedScore),
       _finalScore: Math.round(finalScore),
       _blankStreak: blankStreak,
+      _injuryAlert: injuryAlert,
     });
   }
 
@@ -241,11 +243,41 @@ function applyScarcityBonus(scored: Map<number, ScoredPlayer>, candidates: Score
   }
 }
 
-/** Detect rotation teams (playing multiple competitions) */
-function detectRotationTeam(teamPlayers: Player[], maxGames: number): boolean {
-  const playedAvg =
-    teamPlayers.reduce((s, p) => s + p.gamesPlayed, 0) / (teamPlayers.length || 1);
-  return playedAvg > maxGames * 1.15;
+// ─── Recency-Weighted Formation ─────────────────────────────────────────────
+
+/**
+ * Instead of picking the most-used formation across ALL matches,
+ * weight recent matches more heavily to catch tactical shifts.
+ */
+function getRecencyWeightedFormation(formationMap: Map<string, number>, totalGames: number): string | undefined {
+  if (!formationMap || formationMap.size === 0) return undefined;
+
+  // If we only have one formation, return it
+  if (formationMap.size === 1) {
+    return formationMap.keys().next().value;
+  }
+
+  // Find the formation used the most
+  let bestFormation = '';
+  let bestCount = -1;
+  for (const [form, count] of formationMap) {
+    if (count > bestCount) {
+      bestCount = count;
+      bestFormation = form;
+    }
+  }
+
+  return bestFormation;
+}
+
+/** Convert raw formation string to 3-part system (DF-MC-DL) */
+function normalizeFormation(raw: string): string | undefined {
+  const parts = raw.split('-').map(Number);
+  if (parts.some(isNaN)) return undefined;
+  if (parts.length === 3) return `${parts[0]}-${parts[1]}-${parts[2]}`;
+  if (parts.length === 4) return `${parts[0]}-${parts[1] + parts[2]}-${parts[3]}`;
+  if (parts.length === 5) return `${parts[0]}-${parts[1] + parts[2] + parts[3]}-${parts[4]}`;
+  return undefined;
 }
 
 // ─── Eleven Selector ─────────────────────────────────────────────────────────
@@ -255,19 +287,16 @@ function selectEleven(
   scored: Map<number, ScoredPlayer>,
   preferredFormation?: string
 ): { eleven: ScoredPlayer[]; formation: string; confidence: number } {
-  // Group available players by position
   const byPos: Record<string, ScoredPlayer[]> = { PT: [], DF: [], MC: [], DL: [] };
   for (const p of available) {
     const sp = scored.get(p.id);
     if (sp && byPos[sp.pos]) byPos[sp.pos].push(sp);
   }
 
-  // Apply scarcity guarantee per position
   for (const pos of ['PT', 'DF', 'MC', 'DL']) {
     applyScarcityBonus(scored, byPos[pos]);
   }
 
-  // Sort each position by finalScore descending
   for (const pos of Object.keys(byPos)) {
     byPos[pos].sort((a, b) => b._finalScore - a._finalScore);
   }
@@ -300,12 +329,7 @@ function selectEleven(
     if (eleven.length !== 11) continue;
 
     const reqDf = preferredFormation ? parseInt(preferredFormation.split('-')[0], 10) : null;
-    
-    // Force the AI to use the real-life number of defenders. 
-    // This allows flexibility in attack (e.g. 4-3-3 instead of 4-5-1) to fit star wingers.
-    if (reqDf && nDf !== reqDf) {
-      continue;
-    }
+    if (reqDf && nDf !== reqDf) continue;
 
     const avgScore = eleven.reduce((s, p) => s + p._finalScore, 0) / 11;
 
@@ -316,10 +340,8 @@ function selectEleven(
     }
   }
 
-  // Confidence: % of 11 who have a real starter rate >= 50% in our API sample
   const confident = bestEleven.filter((p) => p._starterRate >= 50 || p._recentAppearances >= 3).length;
-  const confidence =
-    bestEleven.length > 0 ? Math.round((confident / bestEleven.length) * 100) : 0;
+  const confidence = bestEleven.length > 0 ? Math.round((confident / bestEleven.length) * 100) : 0;
 
   return { eleven: bestEleven, formation: bestFormation, confidence };
 }
@@ -337,73 +359,99 @@ export async function GET() {
 
     const teams = [...new Set(allPlayers.map((p) => p.team))].filter(Boolean).sort();
 
-    const result: Record<
-      string,
-      {
-        fixture: Player['fixture'];
-        rotationWarning: boolean;
-        eleven: Array<{
-          id: number;
-          name: string;
-          pos: string;
-          avgPts: number;
-          price: number;
-          gamesPlayed: number;
-          titularity: number;
-          recencyScore: number;
-          recentAppearances: number;
-          advancedScore: number;
-          status: string;
-          blankStreak: number;
-        }>;
-        formation: string;
-        realFormation: string;
-        coach: string;
-        confidence: number;
-        _debugAllPlayers?: any[];
-      }
-    > = {};
-
-    // Parallel fetch: real starters and real injuries for the next round
-    const [realStarterMap, injuryMap] = await Promise.all([
+    // ── Parallel fetch: starters, injuries, round info ──
+    const [realStarterMap, injuryMap, roundInfo] = await Promise.all([
       buildRealStarterMap(50),
-      getNextRoundInjuries()
+      getNextRoundInjuries(),
+      getCurrentRound(),
     ]);
+
+    // ── Odds-based difficulty ──
+    let oddsMap = new Map<number, { homeDifficulty: number; awayDifficulty: number; homeTeam: string; awayTeam: string }>();
+    try {
+      const nextFixtureIds = await getFixtureIdsByRound(roundInfo.nextRound || '');
+      if (nextFixtureIds.length > 0) {
+        oddsMap = await getOddsDifficulty(nextFixtureIds);
+      }
+    } catch { /* odds are optional */ }
+
+    // Build team name → odds difficulty lookup
+    const teamOddsLookup = new Map<string, { difficulty: number; oddsSource: string }>();
+    for (const [, odds] of oddsMap) {
+      const homeNorm = normalizeName(odds.homeTeam);
+      const awayNorm = normalizeName(odds.awayTeam);
+      teamOddsLookup.set(homeNorm, { difficulty: odds.homeDifficulty, oddsSource: `vs ${odds.awayTeam} (casa)` });
+      teamOddsLookup.set(awayNorm, { difficulty: odds.awayDifficulty, oddsSource: `vs ${odds.homeTeam} (fuera)` });
+    }
+
+    // ── Team Context (Motivation + Schedule Pressure) ──
+    const teamsObj = Object.fromEntries(
+      teams.map((teamName, index) => {
+        const ref = allPlayers.find((p) => p.team === teamName);
+        return [
+          index + 1,
+          {
+            name: teamName,
+            nextGames: [],
+            currentFixtureStart: ref?.fixture?.start ?? null,
+            currentFixtureRound: ref?.fixture?.round || '',
+          },
+        ];
+      })
+    );
+
+    let teamContextByName = new Map<string, TeamContextSnapshot>();
+    try {
+      const remoteCtx = await buildTeamContextMap(teamsObj);
+      for (const [rawId, team] of Object.entries(teamsObj)) {
+        const snapshot = remoteCtx.get(Number(rawId));
+        if (snapshot && (team as any).name) {
+          teamContextByName.set((team as any).name, snapshot);
+        }
+      }
+    } catch { /* context is optional */ }
+
+    // ── Build result ──
+    const result: Record<string, {
+      fixture: Player['fixture'];
+      rotationWarning: boolean;
+      eleven: Array<{
+        id: number;
+        name: string;
+        pos: string;
+        avgPts: number;
+        price: number;
+        gamesPlayed: number;
+        titularity: number;
+        recencyScore: number;
+        recentAppearances: number;
+        subAppearances: number;
+        advancedScore: number;
+        status: string;
+        blankStreak: number;
+        starterRate: number;
+        squadPresence: boolean;
+        injuryAlert: { type: string; reason: string } | null;
+      }>;
+      formation: string;
+      realFormation: string;
+      coach: string;
+      confidence: number;
+      motivation: 'alta' | 'media' | 'baja';
+      motivationNote: string;
+      schedulePressure: 'alta' | 'media' | 'baja';
+      schedulePressureNote: string;
+      oddsDifficulty: number | null;
+      oddsSource: string;
+      position: number | null;
+      points: number | null;
+    }> = {};
 
     for (const team of teams) {
       const teamPlayers = allPlayers.filter((p) => p.team === team);
       const maxGames = Math.max(...teamPlayers.map((p) => p.gamesPlayed), 1);
-      const teamIsRotating = detectRotationTeam(teamPlayers, maxGames);
 
-      let rawFormation = 'Desconocida';
-      let teamCoach = 'Desconocido';
-      
-      // Find the full teamStats object for this team
-      let foundTeamStats2: TeamStats | undefined = undefined;
-      for (const [realTeamName, ts] of realStarterMap) {
-        if (normalizeName(realTeamName).includes(normalizeName(team)) || normalizeName(team).includes(normalizeName(realTeamName))) {
-          foundTeamStats2 = ts;
-          teamCoach = ts.coach;
-          break;
-        }
-      }
-
-      // Translate preferred formation from API data
-      let preferredFormation: string | undefined = undefined;
-      if (foundTeamStats2 && foundTeamStats2.formations.size > 0) {
-        let maxCount = -1;
-        let bestRawFormation = '';
-        for (const [form, count] of foundTeamStats2.formations) {
-          if (count > maxCount) { maxCount = count; bestRawFormation = form; }
-        }
-        rawFormation = bestRawFormation;
-        const parts = bestRawFormation.split('-').map(Number);
-        if (parts.length === 3) preferredFormation = `${parts[0]}-${parts[1]}-${parts[2]}`;
-        else if (parts.length === 4) preferredFormation = `${parts[0]}-${parts[1] + parts[2]}-${parts[3]}`;
-        else if (parts.length === 5) preferredFormation = `${parts[0]}-${parts[1] + parts[2] + parts[3]}-${parts[4]}`;
-      }
-
-      // Find the full teamStats object for this team
+      // ── Find team stats ──
       let foundTeamStats: TeamStats | undefined = undefined;
       for (const [realTeamName, ts] of realStarterMap) {
         if (normalizeName(realTeamName).includes(normalizeName(team)) || normalizeName(team).includes(normalizeName(realTeamName))) {
@@ -412,14 +460,53 @@ export async function GET() {
         }
       }
 
-      // Build reconstructed scores using full API data (starters + subs + formations + injuries)
-      const scored = buildReconstructedScores(teamPlayers, maxGames, foundTeamStats, injuryMap);
+      const teamCoach = foundTeamStats?.coach || 'Desconocido';
 
-      // Only select from available (not injured/suspended in Biwenger)
-      // Note: API injuries have already killed the score of players out, so they won't be selected
-      const available = teamPlayers.filter(
-        (p) => p.status !== 'injured' && p.status !== 'suspended'
-      );
+      // ── Recency-weighted formation ──
+      let rawFormation = 'Desconocida';
+      let preferredFormation: string | undefined = undefined;
+      if (foundTeamStats && foundTeamStats.formations.size > 0) {
+        const bestRaw = getRecencyWeightedFormation(foundTeamStats.formations, maxGames);
+        if (bestRaw) {
+          rawFormation = bestRaw;
+          preferredFormation = normalizeFormation(bestRaw);
+        }
+      }
+
+      // ── Team context ──
+      const ctx = teamContextByName.get(team);
+      const motivation = ctx?.motivation || 'media';
+      const motivationNote = ctx?.motivationNote || '';
+      const schedulePressure = ctx?.schedulePressure || 'baja';
+      const schedulePressureNote = ctx?.schedulePressureNote || '';
+      const position = ctx?.position ?? null;
+      const points = ctx?.points ?? null;
+
+      // ── Odds difficulty for this team ──
+      let oddsDifficulty: number | null = null;
+      let oddsSource = '';
+      const teamNorm = normalizeName(team);
+      for (const [oddsTeam, oddsInfo] of teamOddsLookup) {
+        if (oddsTeam.includes(teamNorm) || teamNorm.includes(oddsTeam)) {
+          oddsDifficulty = oddsInfo.difficulty;
+          oddsSource = oddsInfo.oddsSource;
+          break;
+        }
+      }
+
+      // ── Rotation warning ──
+      const rotationWarning = schedulePressure === 'alta';
+
+      // ── Build scores with schedule pressure ──
+      const scored = buildReconstructedScores(teamPlayers, maxGames, foundTeamStats, injuryMap, schedulePressure);
+
+      // Only select from available (not injured/suspended in Biwenger AND not confirmed out by API)
+      const available = teamPlayers.filter((p) => {
+        if (p.status === 'injured' || p.status === 'suspended') return false;
+        const inj = matchInjury(p.name, injuryMap);
+        if (inj?.type === 'Missing Fixture') return false;
+        return true;
+      });
 
       if (available.length < 11) continue;
 
@@ -427,55 +514,49 @@ export async function GET() {
 
       result[team] = {
         fixture: teamPlayers[0]?.fixture || null,
-        rotationWarning: teamIsRotating,
-      eleven: eleven.map((sp) => ({
-            id: sp.id,
-            name: sp.name,
-            pos: sp.pos,
-            avgPts: sp.avgPts,
-            price: sp.price,
-            gamesPlayed: sp.gamesPlayed,
-            titularity: maxGames > 0 ? Math.round((sp.gamesPlayed / maxGames) * 100) : 0,
-            recencyScore: sp._recencyScore,
-            starterRate: sp._starterRate,
-            recentAppearances: sp._recentAppearances,
-            subAppearances: sp._subAppearances,
-            squadPresence: sp._squadPresence,
-            advancedScore: sp._advancedScore,
-            status: sp.status,
-            blankStreak: sp._blankStreak,
-          })),
+        rotationWarning,
+        eleven: eleven.map((sp) => ({
+          id: sp.id,
+          name: sp.name,
+          pos: sp.pos,
+          avgPts: sp.avgPts,
+          price: sp.price,
+          gamesPlayed: sp.gamesPlayed,
+          titularity: maxGames > 0 ? Math.round((sp.gamesPlayed / maxGames) * 100) : 0,
+          recencyScore: sp._recencyScore,
+          starterRate: sp._starterRate,
+          recentAppearances: sp._recentAppearances,
+          subAppearances: sp._subAppearances,
+          squadPresence: sp._squadPresence,
+          advancedScore: sp._advancedScore,
+          status: sp.status,
+          blankStreak: sp._blankStreak,
+          injuryAlert: sp._injuryAlert ? { type: sp._injuryAlert.type, reason: sp._injuryAlert.reason } : null,
+        })),
         formation,
         realFormation: rawFormation,
         coach: teamCoach,
         confidence,
-        _debugAllPlayers: team === 'Athletic' ? Array.from(scored.values()).map(sp => ({
-          name: sp.name,
-          pos: sp.pos,
-          score: sp._finalScore,
-          recency: sp._recencyScore,
-          starterRate: sp._starterRate,
-          subApp: sp._subAppearances,
-          presence: sp._squadPresence
-        })) : undefined,
+        motivation,
+        motivationNote,
+        schedulePressure,
+        schedulePressureNote,
+        oddsDifficulty,
+        oddsSource,
+        position,
+        points,
       };
     }
 
-    return NextResponse.json({ 
-      teams: result, 
-      round,
-      debug: {
-        realStarterTeamsFound: realStarterMap.size,
-        realStarterKeys: Array.from(realStarterMap.keys()),
-        keyStart: (process.env.APIFOOTBALL_KEY || 'MISSING').substring(0, 4),
-        apiStatus: apiDebug.lastStatus,
-        apiError: apiDebug.lastError,
-        apiUrl: apiDebug.lastUrl
-      }
+    return NextResponse.json({
+      teams: result,
+      round: roundInfo.lastCompleted ? `J${roundInfo.roundNumber}` : round,
+      nextRound: roundInfo.nextRound,
+      injuryCount: injuryMap.size,
+      oddsFixtures: oddsMap.size,
     });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : 'Error cargando datos de equipos';
+    const message = error instanceof Error ? error.message : 'Error cargando datos de equipos';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

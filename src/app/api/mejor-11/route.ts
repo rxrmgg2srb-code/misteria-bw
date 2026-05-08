@@ -35,7 +35,7 @@ export async function GET() {
   try {
     // 1. Obtener la lista completa de jugadores (Biwenger) + Lesiones (API-Football) + Cuotas (Bet365)
     const currentRound = await getCurrentRound();
-    const fixtureIds = await getFixtureIdsByRound(currentRound);
+    const fixtureIds = await getFixtureIdsByRound(currentRound.nextRound);
     
     const [playersRes, injuryMap, oddsMap] = await Promise.all([
       getPlayers(),
@@ -89,19 +89,16 @@ export async function GET() {
       // Update difficulty from Bet365 odds
       let finalDifficulty = player.fixture?.difficulty;
       if (player.fixture && oddsMap.size > 0) {
-        const t1 = normName(player.fixture.homeTeam || '');
-        const t2 = normName(player.fixture.awayTeam || '');
         const normPlayerTeam = normName(player.team);
-        
-        for (const [matchKey, difficultyStats] of oddsMap) {
-          const matchNorm = normName(matchKey);
-          if ((t1 && matchNorm.includes(t1)) || (t2 && matchNorm.includes(t2))) {
-            const isHome = t1 && matchNorm.startsWith(t1);
-            if (normPlayerTeam && t1 && normPlayerTeam.includes(t1)) {
-              finalDifficulty = isHome ? difficultyStats.homeDiff : difficultyStats.awayDiff;
-            } else if (normPlayerTeam && t2 && normPlayerTeam.includes(t2)) {
-              finalDifficulty = isHome ? difficultyStats.awayDiff : difficultyStats.homeDiff;
-            }
+        const normOpponent = normName(player.fixture.opponent || '');
+        for (const [, difficultyStats] of oddsMap) {
+          const homeNorm = normName(difficultyStats.homeTeam || '');
+          const awayNorm = normName(difficultyStats.awayTeam || '');
+          const teamIsHome = homeNorm.includes(normPlayerTeam) || normPlayerTeam.includes(homeNorm);
+          const teamIsAway = awayNorm.includes(normPlayerTeam) || normPlayerTeam.includes(awayNorm);
+          const opponentMatch = homeNorm.includes(normOpponent) || awayNorm.includes(normOpponent) || normOpponent.includes(homeNorm) || normOpponent.includes(awayNorm);
+          if ((teamIsHome || teamIsAway) && opponentMatch) {
+            finalDifficulty = teamIsHome ? difficultyStats.homeDifficulty : difficultyStats.awayDifficulty;
             break;
           }
         }
