@@ -127,6 +127,7 @@ function Pitch({ formation, eleven, captain }: { formation: string; eleven: stri
 export default function Mejor11Page() {
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [meta, setMeta] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -138,6 +139,7 @@ export default function Mejor11Page() {
         }
         const data = await response.json();
         setResult(data.result);
+        setMeta(data.meta);
       } catch (err: any) {
         setError(err.message || 'Error desconocido');
       } finally {
@@ -196,7 +198,30 @@ export default function Mejor11Page() {
           <section style={{ background: '#111827', borderRadius: '12px', padding: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <h2 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#f3f4f6', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '20px' }}>⭐</span> Once de Gala ({result.formacion})
+              {meta?.round && <span style={{ fontSize: 12, color: '#6b7280', fontWeight: 400, marginLeft: 8 }}>{meta.round}</span>}
             </h2>
+            {meta && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', fontSize: 11 }}>
+                <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#60a5fa', fontWeight: 700 }}>
+                  📊 {meta.totalPlayersAnalyzed || '500+'} jugadores analizados
+                </span>
+                {meta.injuryCount > 0 && (
+                  <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#fca5a5', fontWeight: 700 }}>
+                    🏥 {meta.injuredOut || 0} descartados · {meta.doubtfulDetected || 0} dudas
+                  </span>
+                )}
+                {meta.oddsFixtures > 0 && (
+                  <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#4ade80', fontWeight: 700 }}>
+                    💰 {meta.oddsFixtures} partidos con cuotas Bet365
+                  </span>
+                )}
+                {meta.starterDataTeams > 0 && (
+                  <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.2)', color: '#c084fc', fontWeight: 700 }}>
+                    ⚽ {meta.starterDataTeams} equipos con datos de titularidad
+                  </span>
+                )}
+              </div>
+            )}
             <Pitch formation={result.formacion} eleven={result.once} captain={result.capitan} />
             <div style={{ marginTop: '16px', background: 'rgba(59,130,246,0.1)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.2)' }}>
               <h3 style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#60a5fa' }}>Razonamiento de la IA</h3>
